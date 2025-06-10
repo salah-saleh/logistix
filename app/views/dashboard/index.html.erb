@@ -29,6 +29,18 @@
         <%= f.label :warehouse, "Warehouse", class: "block text-sm font-medium text-gray-700" %>
         <%= f.select :warehouse, [["Any", ""]] + @warehouse_keys.map { |w| [w, w] }, { selected: @params[:warehouse] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
       </div>
+      <div>
+        <%= f.label :state, "State", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :state, [["Any", ""], ["Active", "active"], ["Inactive", "inactive"]], { selected: @params[:state] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <div>
+        <%= f.label :min_last_update, "Min Last Update", class: "block text-xs text-gray-500" %>
+        <%= f.date_field :min_last_update, value: @params[:min_last_update], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm text-xs" %>
+      </div>
+      <div>
+        <%= f.label :max_last_update, "Max Last Update", class: "block text-xs text-gray-500" %>
+        <%= f.date_field :max_last_update, value: @params[:max_last_update], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm text-xs" %>
+      </div>
       <% [
         ["quantity_on_shelf", "On Shelf"],
         ["quantity_sellable", "Sellable"],
@@ -51,7 +63,9 @@
           ["On Shelf", "quantity_on_shelf"],
           ["Sellable", "quantity_sellable"],
           ["Reserved", "quantity_reserved_for_orders"],
-          ["Blocked", "quantity_blocked_by_merchant"]
+          ["Blocked", "quantity_blocked_by_merchant"],
+          ["State", "state"],
+          ["Last Update", "last_update"]
         ], { selected: @params[:sort_by] }, class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
       </div>
       <div>
@@ -78,6 +92,7 @@
           <th class="px-4 py-2 text-left">Sellable</th>
           <th class="px-4 py-2 text-left">Reserved</th>
           <th class="px-4 py-2 text-left">Blocked</th>
+          <th class="px-4 py-2 text-left">State</th>
           <th class="px-4 py-2 text-left">Warehouses</th>
         </tr>
       </thead>
@@ -91,15 +106,19 @@
             <td class="px-4 py-2"><%= sku["quantity_sellable"] %></td>
             <td class="px-4 py-2"><%= sku["quantity_reserved_for_orders"] %></td>
             <td class="px-4 py-2"><%= sku["quantity_blocked_by_merchant"] %></td>
+            <td class="px-4 py-2"><%= sku["state"] %></td>
             <td class="px-4 py-2">
-              <div class="flex flex-col space-y-1">
+              <div class="grid grid-cols-1 gap-2">
                 <% sku["warehouses"].each do |wh, wh_data| %>
-                  <div class="text-xs">
-                    <span class="font-semibold"><%= wh %>:</span>
-                    <span>On Shelf: <%= wh_data["quantity_on_shelf"] %>,</span>
-                    <span>Sellable: <%= wh_data["quantity_sellable"] %>,</span>
-                    <span>Reserved: <%= wh_data["quantity_reserved_for_orders"] %>,</span>
-                    <span>Blocked: <%= wh_data["quantity_blocked_by_merchant"] %></span>
+                  <div class="bg-gray-50 p-2 rounded shadow-sm">
+                    <div class="font-semibold text-xs"><%= wh %></div>
+                    <div class="text-xs">
+                      <span>On Shelf: <%= wh_data["quantity_on_shelf"] %></span>
+                      <span>Sellable: <%= wh_data["quantity_sellable"] %></span>
+                      <span>Reserved: <%= wh_data["quantity_reserved_for_orders"] %></span>
+                      <span>Blocked: <%= wh_data["quantity_blocked_by_merchant"] %></span>
+                      <div class="text-gray-500 text-xs mt-1">Last Update: <%= wh_data["last_update"] %></div>
+                    </div>
                   </div>
                 <% end %>
               </div>

@@ -35,13 +35,17 @@ namespace :mock_data do
           "quantity_on_shelf" => on_shelf.to_s,
           "quantity_sellable" => sellable.to_s,
           "quantity_reserved_for_orders" => reserved.to_s,
-          "quantity_blocked_by_merchant" => blocked.to_s
+          "quantity_blocked_by_merchant" => blocked.to_s,
+          "last_update" => (Time.now - rand(30).days).strftime("%d/%m/%Y %H:%M UTC")
         }
         total_on_shelf += on_shelf
         total_sellable += sellable
         total_reserved += reserved
         total_blocked += blocked
       end
+
+      # Calculate top-level last_update as the max of warehouse last_update timestamps
+      last_update = warehouses.values.map { |wh| Time.strptime(wh["last_update"], "%d/%m/%Y %H:%M UTC") }.max.strftime("%d/%m/%Y %H:%M UTC")
 
       skus << {
         "sku" => sku_code,
@@ -51,7 +55,9 @@ namespace :mock_data do
         "quantity_sellable" => total_sellable.to_s,
         "quantity_reserved_for_orders" => total_reserved.to_s,
         "quantity_blocked_by_merchant" => total_blocked.to_s,
-        "warehouses" => warehouses
+        "warehouses" => warehouses,
+        "state" => ["active", "inactive"].sample,
+        "last_update" => last_update
       }
     end
 

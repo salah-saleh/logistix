@@ -1,5 +1,55 @@
 <div class="container mx-auto px-4 py-8">
   <h1 class="font-bold text-3xl mb-6">SKU Dashboard</h1>
+
+  <%= form_with url: dashboard_index_path, method: :get, local: true, class: "mb-6" do |f| %>
+    <div class="flex flex-wrap gap-4 items-end">
+      <div>
+        <%= f.label :sku, "SKU", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :sku, value: @params[:sku], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <div>
+        <%= f.label :type, "Type", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :type, [["Any", ""], ["Batch", "batch"], ["Bundle", "bundle"], ["Neither", "neither"]], { selected: @params[:type] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <div>
+        <%= f.label :warehouse, "Warehouse", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :warehouse, [["Any", ""]] + @warehouse_keys.map { |w| [w, w] }, { selected: @params[:warehouse] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <% [
+        ["quantity_on_shelf", "On Shelf"],
+        ["quantity_sellable", "Sellable"],
+        ["quantity_reserved_for_orders", "Reserved"],
+        ["quantity_blocked_by_merchant", "Blocked"]
+      ].each do |qty, label| %>
+        <div>
+          <%= f.label "min_", "Min #{label}", class: "block text-xs text-gray-500" %>
+          <%= f.number_field "min_#{qty}", value: @params["min_#{qty}"], class: "mt-1 block w-16 rounded border-gray-300 shadow-sm text-xs" %>
+        </div>
+        <div>
+          <%= f.label "max_", "Max #{label}", class: "block text-xs text-gray-500" %>
+          <%= f.number_field "max_#{qty}", value: @params["max_#{qty}"], class: "mt-1 block w-16 rounded border-gray-300 shadow-sm text-xs" %>
+        </div>
+      <% end %>
+      <div>
+        <%= f.label :sort_by, "Sort By", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :sort_by, [
+          ["SKU", "sku"],
+          ["On Shelf", "quantity_on_shelf"],
+          ["Sellable", "quantity_sellable"],
+          ["Reserved", "quantity_reserved_for_orders"],
+          ["Blocked", "quantity_blocked_by_merchant"]
+        ], { selected: @params[:sort_by] }, class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <div>
+        <%= f.label :sort_dir, "Direction", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :sort_dir, [["Ascending", "asc"], ["Descending", "desc"]], { selected: @params[:sort_dir] }, class: "mt-1 block w-24 rounded border-gray-300 shadow-sm" %>
+      </div>
+      <div>
+        <%= f.submit "Apply", class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none" %>
+      </div>
+    </div>
+  <% end %>
+
   <div class="overflow-x-auto">
     <table class="min-w-full bg-white border border-gray-200 shadow-sm rounded-lg">
       <thead class="bg-gray-100">

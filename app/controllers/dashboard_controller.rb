@@ -117,4 +117,43 @@ class DashboardController < ApplicationController
       end
     end
   end
+
+  def import
+    if request.post?
+      file = params[:file]
+      overwrite = params[:overwrite] == "1"
+      if file.present?
+        begin
+          new_data = JSON.parse(file.read)
+          existing_data = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
+          if overwrite
+            # Overwrite all data
+            File.open(Rails.root.join("db", "mock_sku_data.json"), "w") do |f|
+              f.write(JSON.pretty_generate(new_data))
+            end
+            flash[:notice] = "Data imported successfully (overwritten)."
+          else
+            # Partial update: update only existing SKUs
+            existing_skus = existing_data.map { |sku| sku["sku"] }
+            new_data.each do |new_sku|
+              if existing_skus.include?(new_sku["sku"])
+                existing_data.map! { |sku| sku["sku"] == new_sku["sku"] ? new_sku : sku }
+              else
+                existing_data << new_sku
+              end
+            end
+            File.open(Rails.root.join("db", "mock_sku_data.json"), "w") do |f|
+              f.write(JSON.pretty_generate(existing_data))
+            end
+            flash[:notice] = "Data imported successfully (partial update)."
+          end
+        rescue => e
+          flash[:error] = "Error importing data: #{e.message}"
+        end
+      else
+        flash[:error] = "No file uploaded."
+      end
+      redirect_to dashboard_index_path
+    end
+  end
 end

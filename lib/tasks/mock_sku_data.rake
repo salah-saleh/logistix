@@ -1,3 +1,4 @@
+# to run: rails mock_data:generate_skus
 namespace :mock_data do
   desc "Generate mock SKU data for FE development"
   task generate_skus: :environment do
@@ -21,7 +22,9 @@ namespace :mock_data do
       total_reserved = 0
       total_blocked = 0
 
-      warehouse_keys.each do |wh|
+      # Randomly select 1 to 5 warehouses for this SKU
+      selected_warehouses = warehouse_keys.sample(rand(1..5))
+      selected_warehouses.each do |wh|
         on_shelf = rand(0..20)
         reserved = rand(0..[on_shelf, 5].min)
         blocked = rand(0..[on_shelf - reserved, 3].min)

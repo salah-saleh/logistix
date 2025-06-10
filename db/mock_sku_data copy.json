@@ -1,0 +1,19 @@
+[
+  {
+    "sku": "SKU_012",
+    "is_batch": false,
+    "is_bundle": false,
+    "quantity_on_shelf": "15",
+    "quantity_sellable": "9",
+    "quantity_reserved_for_orders": "4",
+    "quantity_blocked_by_merchant": "2",
+    "warehouses": {
+      "wh_3": {
+        "quantity_on_shelf": "15",
+        "quantity_sellable": "9",
+        "quantity_reserved_for_orders": "4",
+        "quantity_blocked_by_merchant": "2"
+      }
+    }
+  }
+]

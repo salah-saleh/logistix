@@ -1,0 +1,45 @@
+<div class="container mx-auto px-4 py-8">
+  <h1 class="font-bold text-3xl mb-6">SKU Dashboard</h1>
+  <div class="overflow-x-auto">
+    <table class="min-w-full bg-white border border-gray-200 shadow-sm rounded-lg">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left">SKU</th>
+          <th class="px-4 py-2 text-left">Batch</th>
+          <th class="px-4 py-2 text-left">Bundle</th>
+          <th class="px-4 py-2 text-left">On Shelf</th>
+          <th class="px-4 py-2 text-left">Sellable</th>
+          <th class="px-4 py-2 text-left">Reserved</th>
+          <th class="px-4 py-2 text-left">Blocked</th>
+          <th class="px-4 py-2 text-left">Warehouses</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @skus.each do |sku| %>
+          <tr class="border-t border-gray-200 hover:bg-gray-50">
+            <td class="px-4 py-2 font-mono"><%= sku["sku"] %></td>
+            <td class="px-4 py-2"><%= sku["is_batch"] ? "Yes" : "No" %></td>
+            <td class="px-4 py-2"><%= sku["is_bundle"] ? "Yes" : "No" %></td>
+            <td class="px-4 py-2"><%= sku["quantity_on_shelf"] %></td>
+            <td class="px-4 py-2"><%= sku["quantity_sellable"] %></td>
+            <td class="px-4 py-2"><%= sku["quantity_reserved_for_orders"] %></td>
+            <td class="px-4 py-2"><%= sku["quantity_blocked_by_merchant"] %></td>
+            <td class="px-4 py-2">
+              <div class="flex flex-col space-y-1">
+                <% sku["warehouses"].each do |wh, wh_data| %>
+                  <div class="text-xs">
+                    <span class="font-semibold"><%= wh %>:</span>
+                    <span>On Shelf: <%= wh_data["quantity_on_shelf"] %>,</span>
+                    <span>Sellable: <%= wh_data["quantity_sellable"] %>,</span>
+                    <span>Reserved: <%= wh_data["quantity_reserved_for_orders"] %>,</span>
+                    <span>Blocked: <%= wh_data["quantity_blocked_by_merchant"] %></span>
+                  </div>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

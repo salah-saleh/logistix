@@ -1,4 +1,6 @@
 class DashboardController < ApplicationController
+  require "csv"
+
   def index
     @skus = load_sku_data
     @warehouses = extract_warehouses(@skus)
@@ -19,15 +21,17 @@ class DashboardController < ApplicationController
   end
 
   def export
+    # Load and filter data
     skus = load_sku_data
-    skus = filter_skus(skus, filter_params)
+    filtered_skus = filter_skus(skus, filter_params)
+    sorted_skus = sort_skus(filtered_skus, filter_params[:sort_by], filter_params[:sort_order])
 
     format = filter_params[:format] || "json"
     filename = "sku_data_#{Time.now.strftime("%Y%m%d_%H%M%S")}"
 
     case format
     when "json"
-      send_data JSON.pretty_generate(skus), filename: "#{filename}.json", type: "application/json"
+      send_data JSON.pretty_generate(sorted_skus), filename: "#{filename}.json", type: "application/json"
     when "csv"
       csv_data = CSV.generate do |csv|
         # Write headers
@@ -44,7 +48,7 @@ class DashboardController < ApplicationController
         csv << headers + warehouse_headers
 
         # Write data rows
-        skus.each do |sku|
+        sorted_skus.each do |sku|
           type = if sku["is_batch"]
             "batch"
           elsif sku["is_bundle"]
@@ -98,22 +102,24 @@ class DashboardController < ApplicationController
             raise "Unsupported file format"
           end
 
-          if params[:overwrite] == "true"
+          if params[:overwrite] == "1"
             # Overwrite existing data
             File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(skus))
+            redirect_to dashboard_index_path, notice: "Data imported successfully (overwritten)."
           else
             # Merge with existing data
             existing_skus = load_sku_data
             merged_skus = merge_sku_data(existing_skus, skus)
             File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(merged_skus))
+            redirect_to dashboard_index_path, notice: "Data imported successfully (partial update)."
           end
-
-          redirect_to root_path, notice: "Data imported successfully"
+        rescue JSON::ParserError => e
+          redirect_to dashboard_index_path, flash: { error: "Error importing data: Invalid JSON format" }
         rescue => e
-          redirect_to root_path, alert: "Error importing data: #{e.message}"
+          redirect_to dashboard_index_path, flash: { error: "Error importing data: #{e.message}" }
         end
       else
-        redirect_to root_path, alert: "Please select a file to import"
+        redirect_to dashboard_index_path, flash: { error: "No file uploaded." }
       end
     end
   end
@@ -121,7 +127,7 @@ class DashboardController < ApplicationController
   def show
     @sku = load_sku_data.find { |s| s["sku"] == params[:sku] }
     if @sku.nil?
-      redirect_to root_path, alert: "SKU not found"
+      redirect_to dashboard_index_path, flash: { error: "SKU not found" }
     end
   end
 
@@ -209,34 +215,49 @@ class DashboardController < ApplicationController
   def sort_skus(skus, sort_by, sort_order)
     return skus unless sort_by.present?
 
-    sort_order = sort_order == "desc" ? -1 : 1
     skus.sort_by do |sku|
-      case sort_by
+      value = case sort_by
       when "sku"
-        sku["sku"] * sort_order
+        sku["sku"]
       when "type"
-        type = if sku["is_batch"]
+        if sku["is_batch"]
           "batch"
         elsif sku["is_bundle"]
           "bundle"
         else
           "neither"
         end
-        type * sort_order
+      when "has_variants"
+        sku["has_variants"] ? 1 : 0
       when "state"
-        sku["state"] * sort_order
+        sku["state"]
       when "quantity_on_shelf"
-        sku["quantity_on_shelf"].to_i * sort_order
+        sku["quantity_on_shelf"].to_i
       when "quantity_sellable"
-        sku["quantity_sellable"].to_i * sort_order
+        sku["quantity_sellable"].to_i
       when "quantity_reserved_for_orders"
-        sku["quantity_reserved_for_orders"].to_i * sort_order
+        sku["quantity_reserved_for_orders"].to_i
       when "quantity_blocked_by_merchant"
-        sku["quantity_blocked_by_merchant"].to_i * sort_order
+        sku["quantity_blocked_by_merchant"].to_i
       when "last_update"
-        Time.strptime(sku["last_update"], "%d/%m/%Y %H:%M UTC") * sort_order
+        Time.strptime(sku["last_update"], "%d/%m/%Y %H:%M UTC")
       else
         0
+      end
+
+      # For descending order, we'll use a negative value for numbers and reverse the string comparison
+      if sort_order == "desc"
+        if value.is_a?(Numeric)
+          -value
+        elsif value.is_a?(Time)
+          -value.to_i
+        else
+          # For strings, we'll use a trick to reverse the comparison
+          # by using a negative index to reverse the string
+          value.to_s.reverse
+        end
+      else
+        value
       end
     end
   end
@@ -250,7 +271,6 @@ class DashboardController < ApplicationController
   end
 
   def parse_csv_import(csv_content)
-    require "csv"
     rows = CSV.parse(csv_content, headers: true)
     warehouses = extract_warehouses_from_csv_headers(rows.headers)
     

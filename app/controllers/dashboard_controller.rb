@@ -29,12 +29,12 @@ class DashboardController < ApplicationController
 
     if params[:min_last_update].present?
       min_date = Date.parse(params[:min_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"]) >= min_date }
+      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) >= min_date }
     end
 
     if params[:max_last_update].present?
       max_date = Date.parse(params[:max_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"]) <= max_date }
+      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) <= max_date }
     end
 
     # Quantity range filters
@@ -87,12 +87,12 @@ class DashboardController < ApplicationController
       skus = skus.select { |sku| sku["state"] == params[:state] }
     end
     if params[:min_last_update].present?
-      min_date = Date.strptime(params[:min_last_update], "%d/%m/%Y")
-      skus = skus.select { |sku| sku["warehouses"].values.any? { |wh| Date.strptime(wh["last_update"], "%d/%m/%Y %H:%M UTC") >= min_date } }
+      min_date = Date.parse(params[:min_last_update])
+      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) >= min_date }
     end
     if params[:max_last_update].present?
-      max_date = Date.strptime(params[:max_last_update], "%d/%m/%Y")
-      skus = skus.select { |sku| sku["warehouses"].values.any? { |wh| Date.strptime(wh["last_update"], "%d/%m/%Y %H:%M UTC") <= max_date } }
+      max_date = Date.parse(params[:max_last_update])
+      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) <= max_date }
     end
     %w[quantity_on_shelf quantity_sellable quantity_reserved_for_orders quantity_blocked_by_merchant].each do |qty|
       min_param = params["min_#{qty}"]
@@ -112,11 +112,14 @@ class DashboardController < ApplicationController
     skus.reverse! if sort_dir == -1
 
     respond_to do |format|
-      format.json { render json: skus }
+      format.json { 
+        render json: skus, content_type: "application/json"
+      }
       format.csv do
-        require 'csv'
+        require "csv"
         headers = [
-          "sku", "is_batch", "is_bundle", "quantity_on_shelf", "quantity_sellable", "quantity_reserved_for_orders", "quantity_blocked_by_merchant"
+          "sku", "is_batch", "is_bundle", "quantity_on_shelf", "quantity_sellable", 
+          "quantity_reserved_for_orders", "quantity_blocked_by_merchant", "state", "last_update"
         ]
         warehouse_keys = (1..5).map { |i| "wh_#{i}" }
         warehouse_headers = warehouse_keys.flat_map { |wh| [
@@ -138,7 +141,7 @@ class DashboardController < ApplicationController
             csv << row
           end
         end
-        send_data csv_data, filename: "skus_export.csv"
+        send_data csv_data, filename: "skus_export.csv", type: "text/csv"
       end
     end
   end
@@ -161,6 +164,7 @@ class DashboardController < ApplicationController
                 "quantity_reserved_for_orders" => row["quantity_reserved_for_orders"],
                 "quantity_blocked_by_merchant" => row["quantity_blocked_by_merchant"],
                 "state" => row["state"],
+                "last_update" => row["last_update"],
                 "warehouses" => JSON.parse(row["warehouses"] || "{}")
               }
             end

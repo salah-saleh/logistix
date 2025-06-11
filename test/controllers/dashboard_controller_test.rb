@@ -37,7 +37,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     get export_dashboard_index_url(format: :json)
     assert_response :success
-    assert_equal "application/json", @response.content_type
+    assert_equal "application/json", @response.content_type.split(";").first
     exported_data = JSON.parse(@response.body)
     assert_equal @test_data.first["sku"], exported_data.first["sku"]
   end
@@ -53,20 +53,38 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should import JSON with overwrite" do
+    # Create initial data
+    initial_data = [{
+      "sku" => "EXISTING001",
+      "is_batch" => false,
+      "is_bundle" => false,
+      "quantity_on_shelf" => 5,
+      "quantity_sellable" => 5,
+      "quantity_reserved_for_orders" => 0,
+      "quantity_blocked_by_merchant" => 0,
+      "state" => "active",
+      "last_update" => "2024-03-20 10:00:00 UTC",
+      "warehouses" => {}
+    }]
+    File.write(Rails.root.join("db", "mock_sku_data.json"), initial_data.to_json)
+
     # Create a temporary JSON file for upload
     temp_file = Tempfile.new(["test_import", ".json"])
     temp_file.write(@test_data.to_json)
     temp_file.rewind
 
-    assert_difference -> { JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json"))).length } do
-      post import_dashboard_index_url, params: {
-        file: Rack::Test::UploadedFile.new(temp_file.path, "application/json"),
-        overwrite: "1"
-      }
-    end
+    post import_dashboard_index_url, params: {
+      file: Rack::Test::UploadedFile.new(temp_file.path, "application/json"),
+      overwrite: "1"
+    }
 
     assert_redirected_to dashboard_index_url
     assert_equal "Data imported successfully (overwritten).", flash[:notice]
+
+    # Verify data was overwritten
+    final_data = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
+    assert_equal 1, final_data.length
+    assert_equal "TEST001", final_data.first["sku"]
   end
 
   test "should import JSON without overwrite" do

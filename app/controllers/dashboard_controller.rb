@@ -1,205 +1,300 @@
 class DashboardController < ApplicationController
   def index
-    file_path = Rails.root.join("db", "mock_sku_data.json")
-    skus = JSON.parse(File.read(file_path))
+    @skus = load_sku_data
+    @warehouses = extract_warehouses(@skus)
+    @states = ["active", "inactive"]
+    @types = ["batch", "bundle", "neither"]
 
-    # Filtering
-    if params[:sku].present?
-      skus = skus.select { |sku| sku["sku"].downcase.include?(params[:sku].downcase) }
-    end
+    # Apply filters
+    @skus = filter_skus(@skus, filter_params)
 
-    if params[:type].present?
-      case params[:type]
-      when "batch"
-        skus = skus.select { |sku| sku["is_batch"] }
-      when "bundle"
-        skus = skus.select { |sku| sku["is_bundle"] }
-      when "neither"
-        skus = skus.select { |sku| !sku["is_batch"] && !sku["is_bundle"] }
-      end
-    end
+    # Apply sorting
+    @skus = sort_skus(@skus, filter_params[:sort_by], filter_params[:sort_order])
 
-    if params[:warehouse].present?
-      skus = skus.select { |sku| sku["warehouses"].key?(params[:warehouse]) }
-    end
-
-    if params[:state].present?
-      skus = skus.select { |sku| sku["state"] == params[:state] }
-    end
-
-    if params[:min_last_update].present?
-      min_date = Date.parse(params[:min_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) >= min_date }
-    end
-
-    if params[:max_last_update].present?
-      max_date = Date.parse(params[:max_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) <= max_date }
-    end
-
-    # Quantity range filters
-    %w[quantity_on_shelf quantity_sellable quantity_reserved_for_orders quantity_blocked_by_merchant].each do |qty|
-      min_param = params["min_#{qty}"]
-      max_param = params["max_#{qty}"]
-      if min_param.present?
-        skus = skus.select { |sku| sku[qty].to_i >= min_param.to_i }
-      end
-      if max_param.present?
-        skus = skus.select { |sku| sku[qty].to_i <= max_param.to_i }
-      end
-    end
-
-    # Sorting
-    sort_by = params[:sort_by].presence_in([
-      "sku", "quantity_on_shelf", "quantity_sellable", "quantity_reserved_for_orders", "quantity_blocked_by_merchant", "state", "last_update"
-    ]) || "sku"
-    sort_dir = params[:sort_dir] == "desc" ? -1 : 1
-    skus = skus.sort_by { |sku| sort_by == "sku" ? sku[sort_by] : sku[sort_by].to_i }
-    skus.reverse! if sort_dir == -1
-
-    @skus = skus
-    @params = params
-    @warehouse_keys = (1..5).map { |i| "wh_#{i}" }
+    # Apply pagination
+    @page = (filter_params[:page] || 1).to_i
+    @per_page = 10
+    @total_pages = (@skus.length.to_f / @per_page).ceil
+    @skus = @skus[(@page - 1) * @per_page, @per_page] || []
   end
 
   def export
-    file_path = Rails.root.join("db", "mock_sku_data.json")
-    skus = JSON.parse(File.read(file_path))
+    skus = load_sku_data
+    skus = filter_skus(skus, filter_params)
 
-    # Filtering (same as index)
-    if params[:sku].present?
-      skus = skus.select { |sku| sku["sku"].downcase.include?(params[:sku].downcase) }
-    end
-    if params[:type].present?
-      case params[:type]
-      when "batch"
-        skus = skus.select { |sku| sku["is_batch"] }
-      when "bundle"
-        skus = skus.select { |sku| sku["is_bundle"] }
-      when "neither"
-        skus = skus.select { |sku| !sku["is_batch"] && !sku["is_bundle"] }
-      end
-    end
-    if params[:warehouse].present?
-      skus = skus.select { |sku| sku["warehouses"].key?(params[:warehouse]) }
-    end
-    if params[:state].present?
-      skus = skus.select { |sku| sku["state"] == params[:state] }
-    end
-    if params[:min_last_update].present?
-      min_date = Date.parse(params[:min_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) >= min_date }
-    end
-    if params[:max_last_update].present?
-      max_date = Date.parse(params[:max_last_update])
-      skus = skus.select { |sku| Date.parse(sku["last_update"].split(" ").first) <= max_date }
-    end
-    %w[quantity_on_shelf quantity_sellable quantity_reserved_for_orders quantity_blocked_by_merchant].each do |qty|
-      min_param = params["min_#{qty}"]
-      max_param = params["max_#{qty}"]
-      if min_param.present?
-        skus = skus.select { |sku| sku[qty].to_i >= min_param.to_i }
-      end
-      if max_param.present?
-        skus = skus.select { |sku| sku[qty].to_i <= max_param.to_i }
-      end
-    end
-    sort_by = params[:sort_by].presence_in([
-      "sku", "quantity_on_shelf", "quantity_sellable", "quantity_reserved_for_orders", "quantity_blocked_by_merchant", "state", "last_update"
-    ]) || "sku"
-    sort_dir = params[:sort_dir] == "desc" ? -1 : 1
-    skus = skus.sort_by { |sku| sort_by == "sku" ? sku[sort_by] : sku[sort_by].to_i }
-    skus.reverse! if sort_dir == -1
+    format = filter_params[:format] || "json"
+    filename = "sku_data_#{Time.now.strftime("%Y%m%d_%H%M%S")}"
 
-    respond_to do |format|
-      format.json { 
-        render json: skus, content_type: "application/json"
-      }
-      format.csv do
-        require "csv"
-        headers = [
-          "sku", "is_batch", "is_bundle", "quantity_on_shelf", "quantity_sellable", 
-          "quantity_reserved_for_orders", "quantity_blocked_by_merchant", "state", "last_update"
-        ]
-        warehouse_keys = (1..5).map { |i| "wh_#{i}" }
-        warehouse_headers = warehouse_keys.flat_map { |wh| [
-          "#{wh}_on_shelf", "#{wh}_sellable", "#{wh}_reserved", "#{wh}_blocked"
-        ] }
-        csv_data = CSV.generate(headers: true) do |csv|
-          csv << headers + warehouse_headers
-          skus.each do |sku|
-            row = headers.map { |h| sku[h] }
-            row += warehouse_keys.flat_map do |wh|
-              wh_data = sku["warehouses"][wh] || {}
-              [
-                wh_data["quantity_on_shelf"],
-                wh_data["quantity_sellable"],
-                wh_data["quantity_reserved_for_orders"],
-                wh_data["quantity_blocked_by_merchant"]
-              ]
-            end
-            csv << row
+    case format
+    when "json"
+      send_data JSON.pretty_generate(skus), filename: "#{filename}.json", type: "application/json"
+    when "csv"
+      csv_data = CSV.generate do |csv|
+        # Write headers
+        headers = ["SKU", "Type", "Variants", "State", "Total On Shelf", "Total Sellable", "Total Reserved", "Total Blocked", "Last Update"]
+        warehouse_headers = extract_warehouses(skus).map do |wh|
+          [
+            "#{wh} On Shelf",
+            "#{wh} Sellable",
+            "#{wh} Reserved",
+            "#{wh} Blocked",
+            "#{wh} Last Update"
+          ]
+        end.flatten
+        csv << headers + warehouse_headers
+
+        # Write data rows
+        skus.each do |sku|
+          type = if sku["is_batch"]
+            "batch"
+          elsif sku["is_bundle"]
+            "bundle"
+          else
+            "neither"
           end
+
+          row = [
+            sku["sku"],
+            type,
+            sku["has_variants"] ? "Yes" : "No",
+            sku["state"],
+            sku["quantity_on_shelf"],
+            sku["quantity_sellable"],
+            sku["quantity_reserved_for_orders"],
+            sku["quantity_blocked_by_merchant"],
+            sku["last_update"]
+          ]
+
+          # Add warehouse data
+          extract_warehouses(skus).each do |wh|
+            wh_data = sku["warehouses"][wh] || {}
+            row += [
+              wh_data["quantity_on_shelf"],
+              wh_data["quantity_sellable"],
+              wh_data["quantity_reserved_for_orders"],
+              wh_data["quantity_blocked_by_merchant"],
+              wh_data["last_update"]
+            ]
+          end
+
+          csv << row
         end
-        send_data csv_data, filename: "skus_export.csv", type: "text/csv"
       end
+      send_data csv_data, filename: "#{filename}.csv", type: "text/csv"
     end
   end
 
   def import
     if request.post?
-      file = params[:file]
-      overwrite = params[:overwrite] == "1"
-      if file.present?
+      if params[:file].present?
         begin
-          if file.content_type == "text/csv"
-            require "csv"
-            new_data = CSV.parse(file.read, headers: true).map do |row|
-              {
-                "sku" => row["sku"],
-                "is_batch" => row["is_batch"] == "true",
-                "is_bundle" => row["is_bundle"] == "true",
-                "quantity_on_shelf" => row["quantity_on_shelf"],
-                "quantity_sellable" => row["quantity_sellable"],
-                "quantity_reserved_for_orders" => row["quantity_reserved_for_orders"],
-                "quantity_blocked_by_merchant" => row["quantity_blocked_by_merchant"],
-                "state" => row["state"],
-                "last_update" => row["last_update"],
-                "warehouses" => JSON.parse(row["warehouses"] || "{}")
-              }
-            end
+          file_content = params[:file].read
+          skus = case File.extname(params[:file].original_filename).downcase
+          when ".json"
+            JSON.parse(file_content)
+          when ".csv"
+            parse_csv_import(file_content)
           else
-            new_data = JSON.parse(file.read)
+            raise "Unsupported file format"
           end
-          existing_data = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
-          if overwrite
-            # Overwrite all data
-            File.open(Rails.root.join("db", "mock_sku_data.json"), "w") do |f|
-              f.write(JSON.pretty_generate(new_data))
-            end
-            flash[:notice] = "Data imported successfully (overwritten)."
+
+          if params[:overwrite] == "true"
+            # Overwrite existing data
+            File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(skus))
           else
-            # Partial update: update only existing SKUs
-            existing_skus = existing_data.map { |sku| sku["sku"] }
-            new_data.each do |new_sku|
-              if existing_skus.include?(new_sku["sku"])
-                existing_data.map! { |sku| sku["sku"] == new_sku["sku"] ? new_sku : sku }
-              else
-                existing_data << new_sku
-              end
-            end
-            File.open(Rails.root.join("db", "mock_sku_data.json"), "w") do |f|
-              f.write(JSON.pretty_generate(existing_data))
-            end
-            flash[:notice] = "Data imported successfully (partial update)."
+            # Merge with existing data
+            existing_skus = load_sku_data
+            merged_skus = merge_sku_data(existing_skus, skus)
+            File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(merged_skus))
           end
+
+          redirect_to root_path, notice: "Data imported successfully"
         rescue => e
-          flash[:error] = "Error importing data: #{e.message}"
+          redirect_to root_path, alert: "Error importing data: #{e.message}"
         end
       else
-        flash[:error] = "No file uploaded."
+        redirect_to root_path, alert: "Please select a file to import"
       end
-      redirect_to dashboard_index_path
     end
+  end
+
+  def show
+    @sku = load_sku_data.find { |s| s["sku"] == params[:sku] }
+    if @sku.nil?
+      redirect_to root_path, alert: "SKU not found"
+    end
+  end
+
+  private
+
+  def load_sku_data
+    file_path = Rails.root.join("db", "mock_sku_data.json")
+    if File.exist?(file_path)
+      JSON.parse(File.read(file_path))
+    else
+      []
+    end
+  end
+
+  def extract_warehouses(skus)
+    skus.flat_map { |sku| sku["warehouses"].keys }.uniq.sort
+  end
+
+  def filter_skus(skus, params)
+    skus = skus.select { |sku| sku["sku"].include?(params[:sku]) } if params[:sku].present?
+    skus = skus.select { |sku| sku["state"] == params[:state] } if params[:state].present?
+    skus = skus.select { |sku| sku["is_batch"] } if params[:type] == "batch"
+    skus = skus.select { |sku| sku["is_bundle"] } if params[:type] == "bundle"
+    skus = skus.select { |sku| !sku["is_batch"] && !sku["is_bundle"] } if params[:type] == "neither"
+    skus = skus.select { |sku| sku["has_variants"] } if params[:has_variants] == "true"
+    skus = skus.select { |sku| !sku["has_variants"] } if params[:has_variants] == "false"
+    
+    if params[:warehouse].present?
+      skus = skus.select { |sku| sku["warehouses"].key?(params[:warehouse]) }
+      # Update quantities to show warehouse-specific values
+      skus.each do |sku|
+        wh_data = sku["warehouses"][params[:warehouse]]
+        sku["quantity_on_shelf"] = wh_data["quantity_on_shelf"]
+        sku["quantity_sellable"] = wh_data["quantity_sellable"]
+        sku["quantity_reserved_for_orders"] = wh_data["quantity_reserved_for_orders"]
+        sku["quantity_blocked_by_merchant"] = wh_data["quantity_blocked_by_merchant"]
+        sku["last_update"] = wh_data["last_update"]
+      end
+    end
+
+    # Apply min/max stock filters
+    if params[:min_on_shelf].present?
+      min = params[:min_on_shelf].to_i
+      skus = skus.select { |sku| sku["quantity_on_shelf"].to_i >= min }
+    end
+
+    if params[:max_on_shelf].present?
+      max = params[:max_on_shelf].to_i
+      skus = skus.select { |sku| sku["quantity_on_shelf"].to_i <= max }
+    end
+
+    if params[:min_sellable].present?
+      min = params[:min_sellable].to_i
+      skus = skus.select { |sku| sku["quantity_sellable"].to_i >= min }
+    end
+
+    if params[:max_sellable].present?
+      max = params[:max_sellable].to_i
+      skus = skus.select { |sku| sku["quantity_sellable"].to_i <= max }
+    end
+
+    if params[:min_reserved].present?
+      min = params[:min_reserved].to_i
+      skus = skus.select { |sku| sku["quantity_reserved_for_orders"].to_i >= min }
+    end
+
+    if params[:max_reserved].present?
+      max = params[:max_reserved].to_i
+      skus = skus.select { |sku| sku["quantity_reserved_for_orders"].to_i <= max }
+    end
+
+    if params[:min_blocked].present?
+      min = params[:min_blocked].to_i
+      skus = skus.select { |sku| sku["quantity_blocked_by_merchant"].to_i >= min }
+    end
+
+    if params[:max_blocked].present?
+      max = params[:max_blocked].to_i
+      skus = skus.select { |sku| sku["quantity_blocked_by_merchant"].to_i <= max }
+    end
+
+    skus
+  end
+
+  def sort_skus(skus, sort_by, sort_order)
+    return skus unless sort_by.present?
+
+    sort_order = sort_order == "desc" ? -1 : 1
+    skus.sort_by do |sku|
+      case sort_by
+      when "sku"
+        sku["sku"] * sort_order
+      when "type"
+        type = if sku["is_batch"]
+          "batch"
+        elsif sku["is_bundle"]
+          "bundle"
+        else
+          "neither"
+        end
+        type * sort_order
+      when "state"
+        sku["state"] * sort_order
+      when "quantity_on_shelf"
+        sku["quantity_on_shelf"].to_i * sort_order
+      when "quantity_sellable"
+        sku["quantity_sellable"].to_i * sort_order
+      when "quantity_reserved_for_orders"
+        sku["quantity_reserved_for_orders"].to_i * sort_order
+      when "quantity_blocked_by_merchant"
+        sku["quantity_blocked_by_merchant"].to_i * sort_order
+      when "last_update"
+        Time.strptime(sku["last_update"], "%d/%m/%Y %H:%M UTC") * sort_order
+      else
+        0
+      end
+    end
+  end
+
+  def merge_sku_data(existing_skus, new_skus)
+    existing_map = existing_skus.index_by { |sku| sku["sku"] }
+    new_skus.each do |new_sku|
+      existing_map[new_sku["sku"]] = new_sku
+    end
+    existing_map.values
+  end
+
+  def parse_csv_import(csv_content)
+    require "csv"
+    rows = CSV.parse(csv_content, headers: true)
+    warehouses = extract_warehouses_from_csv_headers(rows.headers)
+    
+    rows.map do |row|
+      sku = {
+        "sku" => row["SKU"],
+        "is_batch" => row["Type"] == "batch",
+        "is_bundle" => row["Type"] == "bundle",
+        "has_variants" => row["Variants"] == "Yes",
+        "quantity_on_shelf" => row["Total On Shelf"],
+        "quantity_sellable" => row["Total Sellable"],
+        "quantity_reserved_for_orders" => row["Total Reserved"],
+        "quantity_blocked_by_merchant" => row["Total Blocked"],
+        "state" => row["State"],
+        "last_update" => row["Last Update"],
+        "warehouses" => {}
+      }
+
+      warehouses.each do |wh|
+        sku["warehouses"][wh] = {
+          "quantity_on_shelf" => row["#{wh} On Shelf"],
+          "quantity_sellable" => row["#{wh} Sellable"],
+          "quantity_reserved_for_orders" => row["#{wh} Reserved"],
+          "quantity_blocked_by_merchant" => row["#{wh} Blocked"],
+          "last_update" => row["#{wh} Last Update"]
+        }
+      end
+
+      sku
+    end
+  end
+
+  def extract_warehouses_from_csv_headers(headers)
+    headers.grep(/^wh_\d+ On Shelf$/).map { |h| h.split(" ").first }
+  end
+
+  def filter_params
+    params.permit(
+      :sku, :type, :state, :warehouse, :has_variants,
+      :sort_by, :sort_order, :page, :format,
+      :min_on_shelf, :max_on_shelf,
+      :min_sellable, :max_sellable,
+      :min_reserved, :max_reserved,
+      :min_blocked, :max_blocked
+    )
   end
 end

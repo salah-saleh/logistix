@@ -16,67 +16,105 @@
   <% end %>
 
   <%= form_with url: dashboard_index_path, method: :get, local: true, class: "mb-6" do |f| %>
-    <div class="flex flex-wrap gap-4 items-end">
-      <div>
-        <%= f.label :sku, "SKU", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.text_field :sku, value: @params[:sku], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
-      </div>
-      <div>
-        <%= f.label :type, "Type", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.select :type, [["Any", ""], ["Batch", "batch"], ["Bundle", "bundle"], ["Neither", "neither"]], { selected: @params[:type] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
-      </div>
-      <div>
-        <%= f.label :warehouse, "Warehouse", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.select :warehouse, [["Any", ""]] + @warehouse_keys.map { |w| [w, w] }, { selected: @params[:warehouse] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
-      </div>
-      <div>
-        <%= f.label :state, "State", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.select :state, [["Any", ""], ["Active", "active"], ["Inactive", "inactive"]], { selected: @params[:state] }, class: "mt-1 block w-28 rounded border-gray-300 shadow-sm" %>
-      </div>
-      <div>
-        <%= f.label :min_last_update, "Min Last Update", class: "block text-xs text-gray-500" %>
-        <%= f.date_field :min_last_update, value: @params[:min_last_update], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm text-xs" %>
-      </div>
-      <div>
-        <%= f.label :max_last_update, "Max Last Update", class: "block text-xs text-gray-500" %>
-        <%= f.date_field :max_last_update, value: @params[:max_last_update], class: "mt-1 block w-32 rounded border-gray-300 shadow-sm text-xs" %>
-      </div>
-      <% [
-        ["quantity_on_shelf", "On Shelf"],
-        ["quantity_sellable", "Sellable"],
-        ["quantity_reserved_for_orders", "Reserved"],
-        ["quantity_blocked_by_merchant", "Blocked"]
-      ].each do |qty, label| %>
-        <div>
-          <%= f.label "min_", "Min #{label}", class: "block text-xs text-gray-500" %>
-          <%= f.number_field "min_#{qty}", value: @params["min_#{qty}"], class: "mt-1 block w-16 rounded border-gray-300 shadow-sm text-xs" %>
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Basic Information -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-semibold text-gray-700 border-b pb-2">Basic Information</h3>
+          <div>
+            <%= f.label :sku, "SKU", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_field :sku, value: @params[:sku], class: "mt-1 block w-full rounded border-gray-300 shadow-sm" %>
+          </div>
+          <div>
+            <%= f.label :type, "Type", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :type, [["Any", ""], ["Batch", "batch"], ["Bundle", "bundle"], ["Neither", "neither"]], 
+                { selected: @params[:type] }, class: "mt-1 block w-full rounded border-gray-300 shadow-sm" %>
+          </div>
+          <div>
+            <%= f.label :state, "State", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :state, [["Any", ""], ["Active", "active"], ["Inactive", "inactive"]], 
+                { selected: @params[:state] }, class: "mt-1 block w-full rounded border-gray-300 shadow-sm" %>
+          </div>
         </div>
-        <div>
-          <%= f.label "max_", "Max #{label}", class: "block text-xs text-gray-500" %>
-          <%= f.number_field "max_#{qty}", value: @params["max_#{qty}"], class: "mt-1 block w-16 rounded border-gray-300 shadow-sm text-xs" %>
+
+        <!-- Quantity Filters -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-semibold text-gray-700 border-b pb-2">Quantity Filters</h3>
+          <% [
+            ["quantity_on_shelf", "On Shelf"],
+            ["quantity_sellable", "Sellable"],
+            ["quantity_reserved_for_orders", "Reserved"],
+            ["quantity_blocked_by_merchant", "Blocked"]
+          ].each do |qty, label| %>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <%= f.label "min_#{qty}", "Min #{label}", class: "block text-xs text-gray-500" %>
+                <%= f.number_field "min_#{qty}", value: @params["min_#{qty}"], 
+                    class: "mt-1 block w-full rounded border-gray-300 shadow-sm text-xs" %>
+              </div>
+              <div>
+                <%= f.label "max_#{qty}", "Max #{label}", class: "block text-xs text-gray-500" %>
+                <%= f.number_field "max_#{qty}", value: @params["max_#{qty}"], 
+                    class: "mt-1 block w-full rounded border-gray-300 shadow-sm text-xs" %>
+              </div>
+            </div>
+          <% end %>
         </div>
-      <% end %>
-      <div>
-        <%= f.label :sort_by, "Sort By", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.select :sort_by, [
-          ["SKU", "sku"],
-          ["On Shelf", "quantity_on_shelf"],
-          ["Sellable", "quantity_sellable"],
-          ["Reserved", "quantity_reserved_for_orders"],
-          ["Blocked", "quantity_blocked_by_merchant"],
-          ["State", "state"],
-          ["Last Update", "last_update"]
-        ], { selected: @params[:sort_by] }, class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
+
+        <!-- Date and Warehouse -->
+        <div class="space-y-4">
+          <h3 class="text-sm font-semibold text-gray-700 border-b pb-2">Date and Location</h3>
+          <div>
+            <%= f.label :warehouse, "Warehouse", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :warehouse, [["Any", ""]] + @warehouse_keys.map { |w| [w, w] }, 
+                { selected: @params[:warehouse] }, class: "mt-1 block w-full rounded border-gray-300 shadow-sm" %>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <%= f.label :min_last_update, "Min Last Update", class: "block text-xs text-gray-500" %>
+              <%= f.date_field :min_last_update, value: @params[:min_last_update], 
+                  class: "mt-1 block w-full rounded border-gray-300 shadow-sm text-xs" %>
+            </div>
+            <div>
+              <%= f.label :max_last_update, "Max Last Update", class: "block text-xs text-gray-500" %>
+              <%= f.date_field :max_last_update, value: @params[:max_last_update], 
+                  class: "mt-1 block w-full rounded border-gray-300 shadow-sm text-xs" %>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <%= f.label :sort_dir, "Direction", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.select :sort_dir, [["Ascending", "asc"], ["Descending", "desc"]], { selected: @params[:sort_dir] }, class: "mt-1 block w-24 rounded border-gray-300 shadow-sm" %>
-      </div>
-      <div class="flex gap-2 items-end">
-        <%= f.submit "Apply", class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none" %>
-        <%= link_to "Reset", dashboard_index_path, class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-white hover:bg-gray-100 focus:outline-none" %>
-        <%= link_to "Export JSON", export_dashboard_index_path(request.query_parameters.merge(format: :json)), class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-green-600 text-white hover:bg-green-700 focus:outline-none", download: "skus_export.json" %>
-        <%= link_to "Export CSV", export_dashboard_index_path(request.query_parameters.merge(format: :csv)), class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none", download: "skus_export.csv" %>
+
+      <!-- Sorting and Actions -->
+      <div class="mt-6 flex flex-wrap gap-4 items-end justify-between">
+        <div class="flex gap-4">
+          <div>
+            <%= f.label :sort_by, "Sort By", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :sort_by, [
+              ["SKU", "sku"],
+              ["On Shelf", "quantity_on_shelf"],
+              ["Sellable", "quantity_sellable"],
+              ["Reserved", "quantity_reserved_for_orders"],
+              ["Blocked", "quantity_blocked_by_merchant"],
+              ["State", "state"],
+              ["Last Update", "last_update"]
+            ], { selected: @params[:sort_by] }, class: "mt-1 block w-40 rounded border-gray-300 shadow-sm" %>
+          </div>
+          <div>
+            <%= f.label :sort_dir, "Direction", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :sort_dir, [["Ascending", "asc"], ["Descending", "desc"]], 
+                { selected: @params[:sort_dir] }, class: "mt-1 block w-32 rounded border-gray-300 shadow-sm" %>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <%= f.submit "Apply Filters", class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none" %>
+          <%= link_to "Reset", dashboard_index_path, class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-white hover:bg-gray-100 focus:outline-none" %>
+          <%= link_to "Export JSON", export_dashboard_index_path(request.query_parameters.merge(format: :json)), 
+              class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-green-600 text-white hover:bg-green-700 focus:outline-none", 
+              download: "skus_export.json" %>
+          <%= link_to "Export CSV", export_dashboard_index_path(request.query_parameters.merge(format: :csv)), 
+              class: "inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded shadow-sm bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none", 
+              download: "skus_export.csv" %>
+        </div>
       </div>
     </div>
   <% end %>
@@ -93,6 +131,7 @@
           <th class="px-4 py-2 text-left">Reserved</th>
           <th class="px-4 py-2 text-left">Blocked</th>
           <th class="px-4 py-2 text-left">State</th>
+          <th class="px-4 py-2 text-left">Last Update</th>
           <th class="px-4 py-2 text-left">Warehouses</th>
         </tr>
       </thead>
@@ -107,6 +146,7 @@
             <td class="px-4 py-2"><%= sku["quantity_reserved_for_orders"] %></td>
             <td class="px-4 py-2"><%= sku["quantity_blocked_by_merchant"] %></td>
             <td class="px-4 py-2"><%= sku["state"] %></td>
+            <td class="px-4 py-2"><%= sku["last_update"] %></td>
             <td class="px-4 py-2">
               <div class="grid grid-cols-1 gap-2">
                 <% sku["warehouses"].each do |wh, wh_data| %>

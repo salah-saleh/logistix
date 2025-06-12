@@ -432,7 +432,7 @@
           <% @skus.each do |sku| %>
             <tr class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                <a href="<%= show_dashboard_index_path(sku: sku["sku"]) %>"><%= sku["sku"] %></a>
+                <a href="<%= show_dashboard_path(sku["sku"]) %>"><%= sku["sku"] %></a>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <%= if sku["is_batch"]

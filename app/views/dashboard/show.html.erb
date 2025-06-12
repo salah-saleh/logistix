@@ -8,9 +8,41 @@
   <div class="bg-white shadow rounded-lg p-6">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold text-gray-900">SKU Details: <%= @sku["sku"] %></h1>
-      <span class="px-3 py-1 rounded-full text-sm font-medium <%= @sku["state"] == "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" %>">
-        <%= @sku["state"].capitalize %>
-      </span>
+      <div class="flex items-center space-x-4">
+        <details class="relative inline-block">
+          <summary class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
+            Download Current Data
+            <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </summary>
+          <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+            <div class="py-1">
+              <%= link_to "Download as JSON", download_dashboard_path(@sku["sku"], format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as CSV", download_dashboard_path(@sku["sku"], format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+            </div>
+          </div>
+        </details>
+
+        <details class="relative inline-block">
+          <summary class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
+            Download Historical Data
+            <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </summary>
+          <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+            <div class="py-1">
+              <%= link_to "Download as JSON", download_history_dashboard_path(@sku["sku"], format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as CSV", download_history_dashboard_path(@sku["sku"], format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+            </div>
+          </div>
+        </details>
+
+        <span class="px-3 py-1 rounded-full text-sm font-medium <%= @sku["state"] == "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" %>">
+          <%= @sku["state"].capitalize %>
+        </span>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

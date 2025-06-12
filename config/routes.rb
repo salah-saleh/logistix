@@ -5,9 +5,12 @@ Rails.application.routes.draw do
     collection do
       post :import
       get :export
-      get ":sku", action: :show, as: :show
     end
   end
+
+  get "dashboard/:sku", to: "dashboard#show", as: :show_dashboard
+  get "dashboard/:sku/download", to: "dashboard#download", as: :download_dashboard
+  get "dashboard/:sku/download_history", to: "dashboard#download_history", as: :download_history_dashboard
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

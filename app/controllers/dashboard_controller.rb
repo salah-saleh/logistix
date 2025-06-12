@@ -1,5 +1,6 @@
 class DashboardController < ApplicationController
   require "csv"
+  require "json"
 
   def index
     @skus = load_sku_data
@@ -128,6 +129,48 @@ class DashboardController < ApplicationController
     @sku = load_sku_data.find { |s| s["sku"] == params[:sku] }
     if @sku.nil?
       redirect_to dashboard_index_path, flash: { error: "SKU not found" }
+    end
+  end
+
+  def download
+    skus = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
+    sku = skus.find { |s| s["sku"] == params[:sku] }
+    return head :not_found unless sku
+
+    respond_to do |format|
+      format.json { render json: sku }
+      format.csv do
+        # Flatten the SKU data for CSV, including warehouse data
+        flattened_data = flatten_sku_data(sku)
+        headers = flattened_data.keys
+        csv_data = CSV.generate do |csv|
+          csv << headers
+          csv << headers.map { |h| flattened_data[h] }
+        end
+        send_data csv_data, filename: "#{sku['sku']}_current_data.csv"
+      end
+    end
+  end
+
+  def download_history
+    skus = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
+    sku = skus.find { |s| s["sku"] == params[:sku] }
+    return head :not_found unless sku
+
+    history = generate_sku_history(sku)
+
+    respond_to do |format|
+      format.json { render json: history }
+      format.csv do
+        # Flatten each historical data point for CSV, including warehouse data
+        flattened_history = history.map { |point| flatten_sku_data(point) }
+        headers = flattened_history.first.keys
+        csv_data = CSV.generate do |csv|
+          csv << headers
+          flattened_history.each { |point| csv << headers.map { |h| point[h] } }
+        end
+        send_data csv_data, filename: "#{sku['sku']}_historical_data.csv"
+      end
     end
   end
 
@@ -316,5 +359,43 @@ class DashboardController < ApplicationController
       :min_reserved, :max_reserved,
       :min_blocked, :max_blocked
     )
+  end
+
+  def flatten_sku_data(sku)
+    flattened = sku.dup
+    # Include warehouse data in the flattened output
+    if sku["warehouses"].present?
+      sku["warehouses"].each do |wh_id, wh_data|
+        flattened["#{wh_id}_on_shelf"] = wh_data["quantity_on_shelf"]
+        flattened["#{wh_id}_sellable"] = wh_data["quantity_sellable"]
+        flattened["#{wh_id}_reserved"] = wh_data["quantity_reserved_for_orders"]
+        flattened["#{wh_id}_blocked"] = wh_data["quantity_blocked_by_merchant"]
+        flattened["#{wh_id}_last_update"] = wh_data["last_update"]
+      end
+    end
+    # Remove nested data that should not be included in CSV
+    flattened.delete("warehouses")
+    flattened.delete("batches")
+    flattened.delete("variants")
+    flattened
+  end
+
+  def generate_sku_history(sku)
+    history_points = 20
+    history = []
+    history_points.times do
+      timestamp = Time.now - rand(30).days - rand(24).hours - rand(60).minutes
+      change_owner = ["API", "user_#{rand(1..5)}"].sample
+      historical_data = sku.deep_dup
+      # Add random variation to quantities
+      ["quantity_on_shelf", "quantity_sellable", "quantity_reserved_for_orders", "quantity_blocked_by_merchant"].each do |field|
+        historical_data[field] = (historical_data[field].to_i + rand(-5..5)).to_s
+      end
+      # Add timestamp and change_owner
+      historical_data["timestamp"] = timestamp.strftime("%d/%m/%Y %H:%M UTC")
+      historical_data["change_owner"] = change_owner
+      history << historical_data
+    end
+    history.sort_by { |h| Time.strptime(h["timestamp"], "%d/%m/%Y %H:%M UTC") }.reverse
   end
 end

@@ -121,4 +121,83 @@ namespace :mock_data do
     end
     puts "Generated mock SKU data in db/mock_sku_data.json"
   end
+
+  desc "Generate mock historical SKU data for a specific SKU"
+  task :generate_sku_history, [:sku_code] => :environment do |t, args|
+    require "json"
+    require "securerandom"
+
+    sku_code = args[:sku_code]
+    history_points = 20
+    warehouse_keys = (1..5).map { |i| "wh_#{i}" }
+    history = []
+
+    # Get the current SKU data as a base
+    current_sku = Sku.find_by(sku: sku_code)
+    return puts "SKU not found: #{sku_code}" unless current_sku
+
+    # Generate historical data points
+    history_points.times do |i|
+      # Generate a random time in the past 30 days
+      timestamp = Time.now - rand(30).days - rand(24).hours - rand(60).minutes
+      
+      # Randomly decide if this was an API update or manual edit
+      change_owner = ["API", "user_#{rand(1..5)}"].sample
+
+      # Create a modified version of the current data
+      historical_data = current_sku.as_json.deep_dup
+
+      # Modify quantities with some random variation
+      historical_data["quantity_on_shelf"] = (historical_data["quantity_on_shelf"].to_i + rand(-5..5)).to_s
+      historical_data["quantity_sellable"] = (historical_data["quantity_sellable"].to_i + rand(-3..3)).to_s
+      historical_data["quantity_reserved_for_orders"] = (historical_data["quantity_reserved_for_orders"].to_i + rand(-2..2)).to_s
+      historical_data["quantity_blocked_by_merchant"] = (historical_data["quantity_blocked_by_merchant"].to_i + rand(-2..2)).to_s
+
+      # Modify warehouse data
+      historical_data["warehouses"].each do |wh_key, wh_data|
+        wh_data["quantity_on_shelf"] = (wh_data["quantity_on_shelf"].to_i + rand(-3..3)).to_s
+        wh_data["quantity_sellable"] = (wh_data["quantity_sellable"].to_i + rand(-2..2)).to_s
+        wh_data["quantity_reserved_for_orders"] = (wh_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
+        wh_data["quantity_blocked_by_merchant"] = (wh_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+        wh_data["last_update"] = timestamp.strftime("%d/%m/%Y %H:%M UTC")
+
+        # Modify batches if they exist
+        if wh_data["batches"]
+          wh_data["batches"].each do |batch_key, batch_data|
+            batch_data["quantity_on_shelf"] = (batch_data["quantity_on_shelf"].to_i + rand(-2..2)).to_s
+            batch_data["quantity_sellable"] = (batch_data["quantity_sellable"].to_i + rand(-1..1)).to_s
+            batch_data["quantity_reserved_for_orders"] = (batch_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
+            batch_data["quantity_blocked_by_merchant"] = (batch_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+          end
+        end
+
+        # Modify variants if they exist
+        if wh_data["variants"]
+          wh_data["variants"].each do |variant_key, variant_data|
+            variant_data["quantity_on_shelf"] = (variant_data["quantity_on_shelf"].to_i + rand(-2..2)).to_s
+            variant_data["quantity_sellable"] = (variant_data["quantity_sellable"].to_i + rand(-1..1)).to_s
+            variant_data["quantity_reserved_for_orders"] = (variant_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
+            variant_data["quantity_blocked_by_merchant"] = (variant_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+          end
+        end
+      end
+
+      # Add metadata
+      historical_data["timestamp"] = timestamp.strftime("%d/%m/%Y %H:%M UTC")
+      historical_data["change_owner"] = change_owner
+
+      history << historical_data
+    end
+
+    # Sort by timestamp descending
+    history.sort_by! { |h| Time.strptime(h["timestamp"], "%d/%m/%Y %H:%M UTC") }.reverse!
+
+    # Save to file
+    output_path = Rails.root.join("db", "mock_sku_history", "#{sku_code}_history.json")
+    FileUtils.mkdir_p(File.dirname(output_path))
+    File.open(output_path, "w") do |f|
+      f.write(JSON.pretty_generate(history))
+    end
+    puts "Generated historical data for SKU #{sku_code} in #{output_path}"
+  end
 end 

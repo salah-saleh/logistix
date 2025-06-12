@@ -159,12 +159,12 @@
       </div>
 
       <form action="<%= import_dashboard_index_path %>" method="post" enctype="multipart/form-data" class="flex items-center space-x-4">
-        <input type="file" name="file" accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        <input type="file" name="file" accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium <%= Rails.env.development? ? 'file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100' : 'file:bg-gray-100 file:text-gray-400 cursor-not-allowed' %>" <%= 'disabled' unless Rails.env.development? %>>
         <div class="flex items-center">
-          <input type="checkbox" name="overwrite" id="overwrite" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+          <input type="checkbox" name="overwrite" id="overwrite" value="1" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" <%= 'disabled' unless Rails.env.development? %>>
           <label for="overwrite" class="ml-2 block text-sm text-gray-900">Overwrite existing data</label>
         </div>
-        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white <%= Rails.env.development? ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed' %> focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" <%= 'disabled' unless Rails.env.development? %>>
           Import
         </button>
       </form>

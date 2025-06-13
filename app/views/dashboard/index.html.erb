@@ -202,34 +202,7 @@
                 </span>
               </a>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <a href="<%= dashboard_index_path(
-                sort_by: "type",
-                sort_order: params[:sort_by] == "type" && params[:sort_order] == "asc" ? "desc" : "asc",
-                sku: params[:sku],
-                type: params[:type],
-                state: params[:state],
-                warehouse: params[:warehouse],
-                has_variants: params[:has_variants],
-                min_on_shelf: params[:min_on_shelf],
-                max_on_shelf: params[:max_on_shelf],
-                min_sellable: params[:min_sellable],
-                max_sellable: params[:max_sellable],
-                min_reserved: params[:min_reserved],
-                max_reserved: params[:max_reserved],
-                min_blocked: params[:min_blocked],
-                max_blocked: params[:max_blocked]
-              ) %>" class="group inline-flex">
-                Type
-                <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                  <% if params[:sort_by] == "type" %>
-                    <%= params[:sort_order] == "asc" ? "↑" : "↓" %>
-                  <% else %>
-                    ↕
-                  <% end %>
-                </span>
-              </a>
-            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <a href="<%= dashboard_index_path(
                 sort_by: "has_variants",
@@ -431,8 +404,8 @@
         <tbody class="bg-white divide-y divide-gray-200">
           <% @skus.each do |sku| %>
             <tr class="hover:bg-gray-50">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                <a href="<%= show_dashboard_path(sku["sku"]) %>"><%= sku["sku"] %></a>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <%= link_to sku["sku"], show_dashboard_path(sku: sku["sku"]), class: "text-blue-600 hover:text-blue-900" %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <%= if sku["is_batch"]
@@ -453,10 +426,46 @@
                   <%= sku["state"].capitalize %>
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= sku["quantity_on_shelf"] %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= sku["quantity_sellable"] %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= sku["quantity_reserved_for_orders"] %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= sku["quantity_blocked_by_merchant"] %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= sku["quantity_on_shelf"] %>
+                <% if sku["warehouses"].present? && params[:warehouse].blank? %>
+                  <div class="mt-1 text-xs text-gray-400">
+                    <% sku["warehouses"].each do |wh_id, wh_data| %>
+                      <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= sku["quantity_sellable"] %>
+                <% if sku["warehouses"].present? && params[:warehouse].blank? %>
+                  <div class="mt-1 text-xs text-gray-400">
+                    <% sku["warehouses"].each do |wh_id, wh_data| %>
+                      <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= sku["quantity_reserved_for_orders"] %>
+                <% if sku["warehouses"].present? && params[:warehouse].blank? %>
+                  <div class="mt-1 text-xs text-gray-400">
+                    <% sku["warehouses"].each do |wh_id, wh_data| %>
+                      <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= sku["quantity_blocked_by_merchant"] %>
+                <% if sku["warehouses"].present? && params[:warehouse].blank? %>
+                  <div class="mt-1 text-xs text-gray-400">
+                    <% sku["warehouses"].each do |wh_id, wh_data| %>
+                      <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= sku["last_update"] %></td>
             </tr>
           <% end %>

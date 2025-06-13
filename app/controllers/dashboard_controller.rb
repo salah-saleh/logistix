@@ -130,6 +130,20 @@ class DashboardController < ApplicationController
     if @sku.nil?
       redirect_to dashboard_index_path, flash: { error: "SKU not found" }
     end
+
+    # Add warehouse data to batches if present
+    if @sku["is_batch"] && @sku["batches"].present?
+      @sku["batches"].each do |batch_id, batch|
+        batch["warehouses"] = @sku["warehouses"]
+      end
+    end
+
+    # Add warehouse data to variants if present
+    if @sku["has_variants"] && @sku["variants"].present?
+      @sku["variants"].each do |variant_id, variant|
+        variant["warehouses"] = @sku["warehouses"]
+      end
+    end
   end
 
   def download

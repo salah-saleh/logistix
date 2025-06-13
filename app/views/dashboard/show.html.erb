@@ -113,10 +113,46 @@
               <% @sku["batches"].each do |batch_id, batch| %>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch["quantity_on_shelf"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch["quantity_sellable"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch["quantity_reserved_for_orders"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch["quantity_blocked_by_merchant"] %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= batch["quantity_on_shelf"] %>
+                    <% if batch["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% batch["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= batch["quantity_sellable"] %>
+                    <% if batch["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% batch["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= batch["quantity_reserved_for_orders"] %>
+                    <% if batch["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% batch["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= batch["quantity_blocked_by_merchant"] %>
+                    <% if batch["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% batch["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
                 </tr>
               <% end %>
             </tbody>
@@ -143,10 +179,46 @@
               <% @sku["variants"].each do |variant_id, variant| %>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= variant_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= variant["quantity_on_shelf"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= variant["quantity_sellable"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= variant["quantity_reserved_for_orders"] %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= variant["quantity_blocked_by_merchant"] %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= variant["quantity_on_shelf"] %>
+                    <% if variant["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% variant["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= variant["quantity_sellable"] %>
+                    <% if variant["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% variant["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= variant["quantity_reserved_for_orders"] %>
+                    <% if variant["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% variant["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= variant["quantity_blocked_by_merchant"] %>
+                    <% if variant["warehouses"].present? %>
+                      <div class="mt-1 text-xs text-gray-400">
+                        <% variant["warehouses"].each do |wh_id, wh_data| %>
+                          <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </td>
                 </tr>
               <% end %>
             </tbody>

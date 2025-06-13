@@ -3,7 +3,6 @@ namespace :mock_data do
   desc "Generate mock SKU data for FE development"
   task generate_skus: :environment do
     require "json"
-    require "securerandom"
 
     sku_count = 50
     warehouse_keys = (1..5).map { |i| "wh_#{i}" }
@@ -11,11 +10,11 @@ namespace :mock_data do
 
     sku_count.times do |i|
       sku_code = "SKU_%03d" % (i + 1)
-      # Only one of is_batch, is_bundle, or neither can be true
-      type = [:batch, :bundle, :neither].sample
-      is_batch = type == :batch
-      is_bundle = type == :bundle
-      has_variants = [true, false].sample
+      # Use modulo to determine type consistently
+      type_index = i % 3
+      is_batch = type_index == 0
+      is_bundle = type_index == 1
+      has_variants = i % 2 == 0  # Every other SKU has variants
 
       warehouses = {}
       total_on_shelf = 0
@@ -23,12 +22,16 @@ namespace :mock_data do
       total_reserved = 0
       total_blocked = 0
 
-      # Randomly select 1 to 5 warehouses for this SKU
-      selected_warehouses = warehouse_keys.sample(rand(1..5))
+      # Use modulo to determine number of warehouses consistently
+      num_warehouses = (i % 5) + 1
+      selected_warehouses = warehouse_keys.first(num_warehouses)
+      
       selected_warehouses.each do |wh|
-        on_shelf = rand(0..20)
-        reserved = rand(0..[on_shelf, 5].min)
-        blocked = rand(0..[on_shelf - reserved, 3].min)
+        # Use consistent quantities based on warehouse index
+        wh_index = warehouse_keys.index(wh)
+        on_shelf = (wh_index + 1) * 5
+        reserved = (wh_index + 1) * 2
+        blocked = wh_index + 1
         sellable = on_shelf - reserved - blocked
         sellable = 0 if sellable < 0
 
@@ -37,17 +40,17 @@ namespace :mock_data do
           "quantity_sellable" => sellable.to_s,
           "quantity_reserved_for_orders" => reserved.to_s,
           "quantity_blocked_by_merchant" => blocked.to_s,
-          "last_update" => (Time.now - rand(30).days).strftime("%d/%m/%Y %H:%M UTC")
+          "last_update" => "20/03/2024 10:00 UTC"
         }
 
         # Add batches if this is a batch SKU
         if is_batch
-          batch_count = rand(1..3)
+          batch_count = 3
           batches = {}
           batch_count.times do |b|
-            batch_on_shelf = rand(0..[on_shelf, 5].min)
-            batch_reserved = rand(0..[batch_on_shelf, 3].min)
-            batch_blocked = rand(0..[batch_on_shelf - batch_reserved, 2].min)
+            batch_on_shelf = (b + 1) * 2
+            batch_reserved = b + 1
+            batch_blocked = b
             batch_sellable = batch_on_shelf - batch_reserved - batch_blocked
             batch_sellable = 0 if batch_sellable < 0
 
@@ -63,12 +66,12 @@ namespace :mock_data do
 
         # Add variants if this SKU has variants
         if has_variants
-          variant_count = rand(1..3)
+          variant_count = 3
           variants = {}
           variant_count.times do |v|
-            variant_on_shelf = rand(0..[on_shelf, 5].min)
-            variant_reserved = rand(0..[variant_on_shelf, 3].min)
-            variant_blocked = rand(0..[variant_on_shelf - variant_reserved, 2].min)
+            variant_on_shelf = (v + 1) * 3
+            variant_reserved = v + 1
+            variant_blocked = v
             variant_sellable = variant_on_shelf - variant_reserved - variant_blocked
             variant_sellable = 0 if variant_sellable < 0
 
@@ -89,9 +92,6 @@ namespace :mock_data do
         total_blocked += blocked
       end
 
-      # Calculate top-level last_update as the max of warehouse last_update timestamps
-      last_update = warehouses.values.map { |wh| Time.strptime(wh["last_update"], "%d/%m/%Y %H:%M UTC") }.max.strftime("%d/%m/%Y %H:%M UTC")
-
       # Add top-level batches and variants if they exist
       top_level_data = {}
       if is_batch
@@ -111,8 +111,8 @@ namespace :mock_data do
         "quantity_reserved_for_orders" => total_reserved.to_s,
         "quantity_blocked_by_merchant" => total_blocked.to_s,
         "warehouses" => warehouses,
-        "state" => ["active", "inactive"].sample,
-        "last_update" => last_update
+        "state" => i % 2 == 0 ? "active" : "inactive",
+        "last_update" => "20/03/2024 10:00 UTC"
       }.merge(top_level_data)
     end
 
@@ -125,7 +125,6 @@ namespace :mock_data do
   desc "Generate mock historical SKU data for a specific SKU"
   task :generate_sku_history, [:sku_code] => :environment do |t, args|
     require "json"
-    require "securerandom"
 
     sku_code = args[:sku_code]
     history_points = 20
@@ -138,46 +137,49 @@ namespace :mock_data do
 
     # Generate historical data points
     history_points.times do |i|
-      # Generate a random time in the past 30 days
-      timestamp = Time.now - rand(30).days - rand(24).hours - rand(60).minutes
+      # Generate a consistent time in the past
+      timestamp = Time.now - (i * 24).hours
       
-      # Randomly decide if this was an API update or manual edit
-      change_owner = ["API", "user_#{rand(1..5)}"].sample
+      # Alternate between API and user updates
+      change_owner = i % 2 == 0 ? "API" : "user_#{i % 5 + 1}"
 
       # Create a modified version of the current data
       historical_data = current_sku.as_json.deep_dup
 
-      # Modify quantities with some random variation
-      historical_data["quantity_on_shelf"] = (historical_data["quantity_on_shelf"].to_i + rand(-5..5)).to_s
-      historical_data["quantity_sellable"] = (historical_data["quantity_sellable"].to_i + rand(-3..3)).to_s
-      historical_data["quantity_reserved_for_orders"] = (historical_data["quantity_reserved_for_orders"].to_i + rand(-2..2)).to_s
-      historical_data["quantity_blocked_by_merchant"] = (historical_data["quantity_blocked_by_merchant"].to_i + rand(-2..2)).to_s
+      # Modify quantities with consistent variations
+      historical_data["quantity_on_shelf"] = (historical_data["quantity_on_shelf"].to_i + (i % 3 - 1)).to_s
+      historical_data["quantity_sellable"] = (historical_data["quantity_sellable"].to_i + (i % 2 - 1)).to_s
+      historical_data["quantity_reserved_for_orders"] = (historical_data["quantity_reserved_for_orders"].to_i + (i % 2)).to_s
+      historical_data["quantity_blocked_by_merchant"] = (historical_data["quantity_blocked_by_merchant"].to_i + (i % 2)).to_s
 
       # Modify warehouse data
       historical_data["warehouses"].each do |wh_key, wh_data|
-        wh_data["quantity_on_shelf"] = (wh_data["quantity_on_shelf"].to_i + rand(-3..3)).to_s
-        wh_data["quantity_sellable"] = (wh_data["quantity_sellable"].to_i + rand(-2..2)).to_s
-        wh_data["quantity_reserved_for_orders"] = (wh_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
-        wh_data["quantity_blocked_by_merchant"] = (wh_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+        wh_index = warehouse_keys.index(wh_key)
+        wh_data["quantity_on_shelf"] = (wh_data["quantity_on_shelf"].to_i + (i % 3 - 1)).to_s
+        wh_data["quantity_sellable"] = (wh_data["quantity_sellable"].to_i + (i % 2 - 1)).to_s
+        wh_data["quantity_reserved_for_orders"] = (wh_data["quantity_reserved_for_orders"].to_i + (i % 2)).to_s
+        wh_data["quantity_blocked_by_merchant"] = (wh_data["quantity_blocked_by_merchant"].to_i + (i % 2)).to_s
         wh_data["last_update"] = timestamp.strftime("%d/%m/%Y %H:%M UTC")
 
         # Modify batches if they exist
         if wh_data["batches"]
           wh_data["batches"].each do |batch_key, batch_data|
-            batch_data["quantity_on_shelf"] = (batch_data["quantity_on_shelf"].to_i + rand(-2..2)).to_s
-            batch_data["quantity_sellable"] = (batch_data["quantity_sellable"].to_i + rand(-1..1)).to_s
-            batch_data["quantity_reserved_for_orders"] = (batch_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
-            batch_data["quantity_blocked_by_merchant"] = (batch_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+            batch_index = batch_key.to_i
+            batch_data["quantity_on_shelf"] = (batch_data["quantity_on_shelf"].to_i + (i % 2 - 1)).to_s
+            batch_data["quantity_sellable"] = (batch_data["quantity_sellable"].to_i + (i % 2)).to_s
+            batch_data["quantity_reserved_for_orders"] = (batch_data["quantity_reserved_for_orders"].to_i + (i % 2)).to_s
+            batch_data["quantity_blocked_by_merchant"] = (batch_data["quantity_blocked_by_merchant"].to_i + (i % 2)).to_s
           end
         end
 
         # Modify variants if they exist
         if wh_data["variants"]
           wh_data["variants"].each do |variant_key, variant_data|
-            variant_data["quantity_on_shelf"] = (variant_data["quantity_on_shelf"].to_i + rand(-2..2)).to_s
-            variant_data["quantity_sellable"] = (variant_data["quantity_sellable"].to_i + rand(-1..1)).to_s
-            variant_data["quantity_reserved_for_orders"] = (variant_data["quantity_reserved_for_orders"].to_i + rand(-1..1)).to_s
-            variant_data["quantity_blocked_by_merchant"] = (variant_data["quantity_blocked_by_merchant"].to_i + rand(-1..1)).to_s
+            variant_index = variant_key.to_i
+            variant_data["quantity_on_shelf"] = (variant_data["quantity_on_shelf"].to_i + (i % 2 - 1)).to_s
+            variant_data["quantity_sellable"] = (variant_data["quantity_sellable"].to_i + (i % 2)).to_s
+            variant_data["quantity_reserved_for_orders"] = (variant_data["quantity_reserved_for_orders"].to_i + (i % 2)).to_s
+            variant_data["quantity_blocked_by_merchant"] = (variant_data["quantity_blocked_by_merchant"].to_i + (i % 2)).to_s
           end
         end
       end

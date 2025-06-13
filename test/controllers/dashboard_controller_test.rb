@@ -2,60 +2,19 @@ require "test_helper"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @test_data = [
-      {
-        "sku" => "TEST001",
-        "is_batch" => true,
-        "is_bundle" => false,
-        "has_variants" => true,
-        "quantity_on_shelf" => 10,
-        "quantity_sellable" => 8,
-        "quantity_reserved_for_orders" => 2,
-        "quantity_blocked_by_merchant" => 0,
-        "state" => "active",
-        "last_update" => "20/03/2024 10:00 UTC",
-        "warehouses" => {
-          "wh_1" => {
-            "quantity_on_shelf" => 5,
-            "quantity_sellable" => 4,
-            "quantity_reserved_for_orders" => 1,
-            "quantity_blocked_by_merchant" => 0,
-            "last_update" => "20/03/2024 10:00 UTC"
-          },
-          "wh_2" => {
-            "quantity_on_shelf" => 5,
-            "quantity_sellable" => 4,
-            "quantity_reserved_for_orders" => 1,
-            "quantity_blocked_by_merchant" => 0,
-            "last_update" => "20/03/2024 10:00 UTC"
-          }
-        }
-      },
-      {
-        "sku" => "TEST002",
-        "is_batch" => false,
-        "is_bundle" => true,
-        "has_variants" => false,
-        "quantity_on_shelf" => 20,
-        "quantity_sellable" => 15,
-        "quantity_reserved_for_orders" => 5,
-        "quantity_blocked_by_merchant" => 0,
-        "state" => "inactive",
-        "last_update" => "20/03/2024 10:00 UTC",
-        "warehouses" => {
-          "wh_1" => {
-            "quantity_on_shelf" => 20,
-            "quantity_sellable" => 15,
-            "quantity_reserved_for_orders" => 5,
-            "quantity_blocked_by_merchant" => 0,
-            "last_update" => "20/03/2024 10:00 UTC"
-          }
-        }
-      }
-    ]
+    @test_data = JSON.parse(File.read(Rails.root.join("test", "fixtures", "files", "test_sku_data.json")))
+    @original_data = File.read(Rails.root.join("db", "mock_sku_data.json")) if File.exist?(Rails.root.join("db", "mock_sku_data.json"))
+  end
+
+  teardown do
+    # Restore original data after each test
+    if @original_data
+      File.write(Rails.root.join("db", "mock_sku_data.json"), @original_data)
+    end
   end
 
   test "should get index" do
+    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
     get dashboard_index_url
     assert_response :success
   end
@@ -89,7 +48,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       "quantity_reserved_for_orders" => 0,
       "quantity_blocked_by_merchant" => 0,
       "state" => "active",
-      "last_update" => "2024-03-20 10:00:00 UTC",
+      "last_update" => "20/03/2024 10:00 UTC",
       "warehouses" => {}
     }]
     File.write(Rails.root.join("db", "mock_sku_data.json"), initial_data.to_json)
@@ -121,7 +80,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       "quantity_reserved_for_orders" => 0,
       "quantity_blocked_by_merchant" => 0,
       "state" => "active",
-      "last_update" => "2024-03-20 10:00:00 UTC",
+      "last_update" => "20/03/2024 10:00 UTC",
       "warehouses" => {}
     }]
     File.write(Rails.root.join("db", "mock_sku_data.json"), initial_data.to_json)

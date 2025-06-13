@@ -1,0 +1,79 @@
+[
+  {
+    "sku": "TEST001",
+    "is_batch": true,
+    "is_bundle": false,
+    "has_variants": true,
+    "quantity_on_shelf": 10,
+    "quantity_sellable": 8,
+    "quantity_reserved_for_orders": 2,
+    "quantity_blocked_by_merchant": 0,
+    "state": "active",
+    "last_update": "20/03/2024 10:00 UTC",
+    "warehouses": {
+      "wh_1": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0,
+        "last_update": "20/03/2024 10:00 UTC"
+      },
+      "wh_2": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0,
+        "last_update": "20/03/2024 10:00 UTC"
+      }
+    },
+    "batches": {
+      "batch_1": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0
+      },
+      "batch_2": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0
+      }
+    },
+    "variants": {
+      "var_1": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0
+      },
+      "var_2": {
+        "quantity_on_shelf": 5,
+        "quantity_sellable": 4,
+        "quantity_reserved_for_orders": 1,
+        "quantity_blocked_by_merchant": 0
+      }
+    }
+  },
+  {
+    "sku": "TEST002",
+    "is_batch": false,
+    "is_bundle": true,
+    "has_variants": false,
+    "quantity_on_shelf": 20,
+    "quantity_sellable": 15,
+    "quantity_reserved_for_orders": 5,
+    "quantity_blocked_by_merchant": 0,
+    "state": "inactive",
+    "last_update": "20/03/2024 10:00 UTC",
+    "warehouses": {
+      "wh_1": {
+        "quantity_on_shelf": 20,
+        "quantity_sellable": 15,
+        "quantity_reserved_for_orders": 5,
+        "quantity_blocked_by_merchant": 0,
+        "last_update": "20/03/2024 10:00 UTC"
+      }
+    }
+  }
+] 

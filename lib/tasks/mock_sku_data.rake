@@ -4,6 +4,9 @@ namespace :mock_data do
   task generate_skus: :environment do
     require "json"
 
+    # Clear existing data
+    Sku.delete_all
+
     sku_count = 50
     warehouse_keys = (1..5).map { |i| "wh_#{i}" }
     skus = []
@@ -101,7 +104,7 @@ namespace :mock_data do
         top_level_data["variants"] = warehouses.values.flat_map { |wh| wh["variants"]&.to_a || [] }.to_h
       end
 
-      skus << {
+      sku_data = {
         "sku" => sku_code,
         "is_batch" => is_batch,
         "is_bundle" => is_bundle,
@@ -114,12 +117,33 @@ namespace :mock_data do
         "state" => i % 2 == 0 ? "active" : "inactive",
         "last_update" => "20/03/2024 10:00 UTC"
       }.merge(top_level_data)
+
+      # Create SKU in MongoDB
+      Sku.create!(
+        sku: sku_data["sku"],
+        is_batch: sku_data["is_batch"],
+        is_bundle: sku_data["is_bundle"],
+        has_variants: sku_data["has_variants"],
+        quantity_on_shelf: sku_data["quantity_on_shelf"].to_i,
+        quantity_sellable: sku_data["quantity_sellable"].to_i,
+        quantity_reserved_for_orders: sku_data["quantity_reserved_for_orders"].to_i,
+        quantity_blocked_by_merchant: sku_data["quantity_blocked_by_merchant"].to_i,
+        warehouses: sku_data["warehouses"],
+        state: sku_data["state"],
+        last_update: Time.strptime(sku_data["last_update"], "%d/%m/%Y %H:%M UTC"),
+        batches: sku_data["batches"],
+        variants: sku_data["variants"]
+      )
+
+      skus << sku_data
     end
 
+    # Also save to JSON file for reference
     File.open(Rails.root.join("db", "mock_sku_data.json"), "w") do |f|
       f.write(JSON.pretty_generate(skus))
     end
-    puts "Generated mock SKU data in db/mock_sku_data.json"
+    puts "Generated and seeded mock SKU data in MongoDB"
+    puts "Also saved to db/mock_sku_data.json for reference"
   end
 
   desc "Generate mock historical SKU data for a specific SKU"

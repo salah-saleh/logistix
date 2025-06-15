@@ -7,7 +7,7 @@
 
   <div class="bg-white shadow rounded-lg p-6">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-900">SKU Details: <%= @sku["sku"] %></h1>
+      <h1 class="text-2xl font-bold text-gray-900">SKU Details: <%= @sku.sku %></h1>
       <div class="flex items-center space-x-4">
         <details class="relative inline-block">
           <summary class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
@@ -18,8 +18,8 @@
           </summary>
           <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
             <div class="py-1">
-              <%= link_to "Download as JSON", download_dashboard_path(@sku["sku"], format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-              <%= link_to "Download as CSV", download_dashboard_path(@sku["sku"], format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as JSON", download_dashboard_path(@sku.sku, format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as CSV", download_dashboard_path(@sku.sku, format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
             </div>
           </div>
         </details>
@@ -33,14 +33,14 @@
           </summary>
           <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
             <div class="py-1">
-              <%= link_to "Download as JSON", download_history_dashboard_path(@sku["sku"], format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-              <%= link_to "Download as CSV", download_history_dashboard_path(@sku["sku"], format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as JSON", download_history_dashboard_path(@sku.sku, format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
+              <%= link_to "Download as CSV", download_history_dashboard_path(@sku.sku, format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
             </div>
           </div>
         </details>
 
-        <span class="px-3 py-1 rounded-full text-sm font-medium <%= @sku["state"] == "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" %>">
-          <%= @sku["state"].capitalize %>
+        <span class="px-3 py-1 rounded-full text-sm font-medium <%= @sku.state == "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" %>">
+          <%= @sku.state.capitalize %>
         </span>
       </div>
     </div>
@@ -52,9 +52,9 @@
           <div class="flex justify-between">
             <dt class="text-gray-600">Type:</dt>
             <dd class="font-medium">
-              <% if @sku["is_batch"] %>
+              <% if @sku.is_batch %>
                 Batch
-              <% elsif @sku["is_bundle"] %>
+              <% elsif @sku.is_bundle %>
                 Bundle
               <% else %>
                 Standard
@@ -63,11 +63,11 @@
           </div>
           <div class="flex justify-between">
             <dt class="text-gray-600">Has Variants:</dt>
-            <dd class="font-medium"><%= @sku["has_variants"] ? "Yes" : "No" %></dd>
+            <dd class="font-medium"><%= @sku.has_variants ? "Yes" : "No" %></dd>
           </div>
           <div class="flex justify-between">
             <dt class="text-gray-600">Last Update:</dt>
-            <dd class="font-medium"><%= @sku["last_update"] %></dd>
+            <dd class="font-medium"><%= @sku.last_update %></dd>
           </div>
         </dl>
       </div>
@@ -77,25 +77,25 @@
         <dl class="space-y-2">
           <div class="flex justify-between">
             <dt class="text-gray-600">On Shelf:</dt>
-            <dd class="font-medium"><%= @sku["quantity_on_shelf"] %></dd>
+            <dd class="font-medium"><%= @sku.quantity_on_shelf %></dd>
           </div>
           <div class="flex justify-between">
             <dt class="text-gray-600">Sellable:</dt>
-            <dd class="font-medium"><%= @sku["quantity_sellable"] %></dd>
+            <dd class="font-medium"><%= @sku.quantity_sellable %></dd>
           </div>
           <div class="flex justify-between">
             <dt class="text-gray-600">Reserved for Orders:</dt>
-            <dd class="font-medium"><%= @sku["quantity_reserved_for_orders"] %></dd>
+            <dd class="font-medium"><%= @sku.quantity_reserved_for_orders %></dd>
           </div>
           <div class="flex justify-between">
             <dt class="text-gray-600">Blocked by Merchant:</dt>
-            <dd class="font-medium"><%= @sku["quantity_blocked_by_merchant"] %></dd>
+            <dd class="font-medium"><%= @sku.quantity_blocked_by_merchant %></dd>
           </div>
         </dl>
       </div>
     </div>
 
-    <% if @sku["is_batch"] && @sku["batches"].present? %>
+    <% if @sku.is_batch && @sku.batches.present? %>
       <div class="mb-8">
         <h2 class="text-lg font-semibold mb-4">Batches</h2>
         <div class="overflow-x-auto">
@@ -110,7 +110,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @sku["batches"].each do |batch_id, batch| %>
+              <% @sku.batches.each do |batch_id, batch| %>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_id %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -161,7 +161,7 @@
       </div>
     <% end %>
 
-    <% if @sku["has_variants"] && @sku["variants"].present? %>
+    <% if @sku.has_variants && @sku.variants.present? %>
       <div class="mb-8">
         <h2 class="text-lg font-semibold mb-4">Variants</h2>
         <div class="overflow-x-auto">
@@ -176,7 +176,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @sku["variants"].each do |variant_id, variant| %>
+              <% @sku.variants.each do |variant_id, variant| %>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= variant_id %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -242,7 +242,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <% @sku["warehouses"].each do |wh_id, wh_data| %>
+            <% @sku.warehouses.each do |wh_id, wh_data| %>
               <tr>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= wh_id %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= wh_data["quantity_on_shelf"] %></td>

@@ -3,189 +3,151 @@ class DashboardController < ApplicationController
   require "json"
 
   def index
-    @skus = load_sku_data
-    @warehouses = extract_warehouses(@skus)
+    @skus = Sku.all
     @states = ["active", "inactive"]
-    @types = ["batch", "bundle", "neither"]
+    @warehouses = ["wh_1", "wh_2", "wh_3", "wh_4", "wh_5"]
 
-    # Apply filters
-    @skus = filter_skus(@skus, filter_params)
+    # Apply filters if present
+    @skus = @skus.where(state: params[:state]) if params[:state].present?
+    @skus = @skus.where(is_batch: true) if params[:type] == "batch"
+    @skus = @skus.where(is_bundle: true) if params[:type] == "bundle"
+    @skus = @skus.where(has_variants: true) if params[:has_variants] == "true"
+
+    # Apply quantity range filters
+    if params[:min_on_shelf].present?
+      @skus = @skus.where(:quantity_on_shelf.gte => params[:min_on_shelf].to_i)
+    end
+    if params[:max_on_shelf].present?
+      @skus = @skus.where(:quantity_on_shelf.lte => params[:max_on_shelf].to_i)
+    end
+    if params[:min_sellable].present?
+      @skus = @skus.where(:quantity_sellable.gte => params[:min_sellable].to_i)
+    end
+    if params[:max_sellable].present?
+      @skus = @skus.where(:quantity_sellable.lte => params[:max_sellable].to_i)
+    end
+    if params[:min_reserved].present?
+      @skus = @skus.where(:quantity_reserved_for_orders.gte => params[:min_reserved].to_i)
+    end
+    if params[:max_reserved].present?
+      @skus = @skus.where(:quantity_reserved_for_orders.lte => params[:max_reserved].to_i)
+    end    
 
     # Apply sorting
-    @skus = sort_skus(@skus, filter_params[:sort_by], filter_params[:sort_order])
+    if params[:sort_by].present?
+      sort_order = params[:sort_order] == "desc" ? -1 : 1
+      @skus = @skus.order_by(params[:sort_by] => sort_order)
+    end
+
+    # Ensure @skus is never nil
+    @skus = [] if @skus.nil?
 
     # Apply pagination
-    @page = (filter_params[:page] || 1).to_i
+    @page = (params[:page] || 1).to_i
     @per_page = 10
     @total_pages = (@skus.length.to_f / @per_page).ceil
     @skus = @skus[(@page - 1) * @per_page, @per_page] || []
   end
 
-  def export
-    # Load and filter data
-    skus = load_sku_data
-    filtered_skus = filter_skus(skus, filter_params)
-    sorted_skus = sort_skus(filtered_skus, filter_params[:sort_by], filter_params[:sort_order])
-
-    format = filter_params[:format] || "json"
-    filename = "sku_data_#{Time.now.strftime("%Y%m%d_%H%M%S")}"
-
-    case format
-    when "json"
-      send_data JSON.pretty_generate(sorted_skus), filename: "#{filename}.json", type: "application/json"
-    when "csv"
-      csv_data = CSV.generate do |csv|
-        # Write headers
-        headers = ["SKU", "Type", "Variants", "State", "Total On Shelf", "Total Sellable", "Total Reserved", "Total Blocked", "Last Update"]
-        warehouse_headers = extract_warehouses(skus).map do |wh|
-          [
-            "#{wh} On Shelf",
-            "#{wh} Sellable",
-            "#{wh} Reserved",
-            "#{wh} Blocked",
-            "#{wh} Last Update"
-          ]
-        end.flatten
-        csv << headers + warehouse_headers
-
-        # Write data rows
-        sorted_skus.each do |sku|
-          type = if sku["is_batch"]
-            "batch"
-          elsif sku["is_bundle"]
-            "bundle"
-          else
-            "neither"
-          end
-
-          row = [
-            sku["sku"],
-            type,
-            sku["has_variants"] ? "Yes" : "No",
-            sku["state"],
-            sku["quantity_on_shelf"],
-            sku["quantity_sellable"],
-            sku["quantity_reserved_for_orders"],
-            sku["quantity_blocked_by_merchant"],
-            sku["last_update"]
-          ]
-
-          # Add warehouse data
-          extract_warehouses(skus).each do |wh|
-            wh_data = sku["warehouses"][wh] || {}
-            row += [
-              wh_data["quantity_on_shelf"],
-              wh_data["quantity_sellable"],
-              wh_data["quantity_reserved_for_orders"],
-              wh_data["quantity_blocked_by_merchant"],
-              wh_data["last_update"]
-            ]
-          end
-
-          csv << row
-        end
-      end
-      send_data csv_data, filename: "#{filename}.csv", type: "text/csv"
-    end
-  end
-
-  def import
-    if request.post?
-      if params[:file].present?
-        begin
-          file_content = params[:file].read
-          skus = case File.extname(params[:file].original_filename).downcase
-          when ".json"
-            JSON.parse(file_content)
-          when ".csv"
-            parse_csv_import(file_content)
-          else
-            raise "Unsupported file format"
-          end
-
-          if params[:overwrite] == "1"
-            # Overwrite existing data
-            File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(skus))
-            redirect_to dashboard_index_path, notice: "Data imported successfully (overwritten)."
-          else
-            # Merge with existing data
-            existing_skus = load_sku_data
-            merged_skus = merge_sku_data(existing_skus, skus)
-            File.write(Rails.root.join("db", "mock_sku_data.json"), JSON.pretty_generate(merged_skus))
-            redirect_to dashboard_index_path, notice: "Data imported successfully (partial update)."
-          end
-        rescue JSON::ParserError => e
-          redirect_to dashboard_index_path, flash: { error: "Error importing data: Invalid JSON format" }
-        rescue => e
-          redirect_to dashboard_index_path, flash: { error: "Error importing data: #{e.message}" }
-        end
-      else
-        redirect_to dashboard_index_path, flash: { error: "No file uploaded." }
-      end
-    end
-  end
-
   def show
-    @sku = load_sku_data.find { |s| s["sku"] == params[:sku] }
+    Rails.logger.debug "Looking for SKU: #{params[:sku]}"
+    @sku = Sku.where(sku: params[:sku]).first
+    Rails.logger.debug "Found SKU: #{@sku.inspect}"
     if @sku.nil?
-      redirect_to dashboard_index_path, flash: { error: "SKU not found" }
+      render json: { error: "SKU not found", status: 404 }, status: :not_found
+      return
     end
-
-    # Add warehouse data to batches if present
-    if @sku["is_batch"] && @sku["batches"].present?
-      @sku["batches"].each do |batch_id, batch|
-        batch["warehouses"] = @sku["warehouses"]
-      end
-    end
-
-    # Add warehouse data to variants if present
-    if @sku["has_variants"] && @sku["variants"].present?
-      @sku["variants"].each do |variant_id, variant|
-        variant["warehouses"] = @sku["warehouses"]
-      end
-    end
+    render :show
   end
 
   def download
-    skus = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
-    sku = skus.find { |s| s["sku"] == params[:sku] }
-    return head :not_found unless sku
+    Rails.logger.debug "Looking for SKU: #{params[:sku]}"
+    @sku = Sku.where(sku: params[:sku]).first
+    Rails.logger.debug "Found SKU: #{@sku.inspect}"
+    if @sku.nil?
+      render json: { error: "SKU not found", status: 404 }, status: :not_found
+      return
+    end
 
     respond_to do |format|
-      format.json { render json: sku }
+      format.json { render json: @sku }
       format.csv do
-        # Flatten the SKU data for CSV, including warehouse data
-        flattened_data = flatten_sku_data(sku)
+        # Flatten the SKU data for CSV
+        flattened_data = @sku.attributes
         headers = flattened_data.keys
         csv_data = CSV.generate do |csv|
           csv << headers
           csv << headers.map { |h| flattened_data[h] }
         end
-        send_data csv_data, filename: "#{sku['sku']}_current_data.csv"
+        send_data csv_data, filename: "#{@sku.sku}_current_data.csv"
       end
     end
   end
 
   def download_history
-    skus = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
-    sku = skus.find { |s| s["sku"] == params[:sku] }
-    return head :not_found unless sku
+    Rails.logger.debug "Looking for SKU: #{params[:sku]}"
+    @sku = Sku.where(sku: params[:sku]).first
+    Rails.logger.debug "Found SKU: #{@sku.inspect}"
+    if @sku.nil?
+      render json: { error: "SKU not found", status: 404 }, status: :not_found
+      return
+    end
 
-    history = generate_sku_history(sku)
+    # Generate history from the SKU's attributes
+    history = [@sku.attributes]
 
     respond_to do |format|
       format.json { render json: history }
       format.csv do
-        # Flatten each historical data point for CSV, including warehouse data
-        flattened_history = history.map { |point| flatten_sku_data(point) }
+        # Flatten each historical data point for CSV
+        flattened_history = history.map { |point| point }
         headers = flattened_history.first.keys
         csv_data = CSV.generate do |csv|
           csv << headers
           flattened_history.each { |point| csv << headers.map { |h| point[h] } }
         end
-        send_data csv_data, filename: "#{sku['sku']}_historical_data.csv"
+        send_data csv_data, filename: "#{@sku.sku}_historical_data.csv"
       end
     end
+  end
+
+  def export
+    @skus = Sku.all
+    respond_to do |format|
+      format.json { render json: @skus }
+      format.csv do
+        headers = @skus.first.attributes.keys
+        csv_data = CSV.generate do |csv|
+          csv << headers
+          @skus.each do |sku|
+            csv << headers.map { |h| sku[h] }
+          end
+        end
+        send_data csv_data, filename: "skus_export.csv"
+      end
+    end
+  end
+
+  def import
+    if params[:file].present?
+      begin
+        data = JSON.parse(params[:file].read)
+        if params[:overwrite]
+          Sku.delete_all
+        end
+        data.each do |sku_data|
+          Sku.create!(sku_data)
+        end
+        flash[:notice] = "Import successful"
+      rescue JSON::ParserError
+        flash[:error] = "Invalid JSON file"
+      rescue => e
+        flash[:error] = "Import failed: #{e.message}"
+      end
+    else
+      flash[:error] = "No file selected"
+    end
+    redirect_to dashboard_index_path
   end
 
   private

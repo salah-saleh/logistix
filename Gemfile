@@ -43,6 +43,15 @@ gem "thruster", require: false
 # Use MongoDB as the database
 gem "mongoid", "~> 8.1"
 
+# Use Kaminari's core pagination library
+gem "kaminari"
+
+# Use Kaminari's Active Record adapter
+gem "kaminari-activerecord"
+
+# Use Kaminari's Mongoid adapter
+gem "kaminari-mongoid"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

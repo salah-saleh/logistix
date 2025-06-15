@@ -1,16 +1,12 @@
 Rails.application.routes.draw do
   root "dashboard#index"
   
-  resources :dashboard, only: [:index] do
-    collection do
-      post :import
-      get :export
-    end
-  end
-
-  get "dashboard/:sku", to: "dashboard#show", as: :show_dashboard
-  get "dashboard/:sku/download", to: "dashboard#download", as: :download_dashboard
-  get "dashboard/:sku/download_history", to: "dashboard#download_history", as: :download_history_dashboard
+  get "dashboard", to: "dashboard#index", as: :dashboard_index
+  get "dashboard/show/:sku", to: "dashboard#show", as: :show_dashboard
+  get "dashboard/export", to: "dashboard#export", as: :export_dashboard_index
+  get "dashboard/download/:sku", to: "dashboard#download", as: :download_dashboard
+  get "dashboard/download_history/:sku", to: "dashboard#download_history", as: :download_history_dashboard
+  post "dashboard/import", to: "dashboard#import", as: :import_dashboard_index
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

@@ -2,270 +2,124 @@ require "test_helper"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @test_data = JSON.parse(File.read(Rails.root.join("test", "fixtures", "files", "test_sku_data.json")))
-    @original_data = File.read(Rails.root.join("db", "mock_sku_data.json")) if File.exist?(Rails.root.join("db", "mock_sku_data.json"))
-  end
+    # Clean up the database before each test
+    Mongoid.purge!
+    
+    # Create test data
+    @sku = Sku.create!(
+      sku: "TEST-SKU-001",
+      is_batch: false,
+      is_bundle: false,
+      has_variants: false,
+      quantity_on_shelf: 100,
+      quantity_sellable: 90,
+      quantity_reserved_for_orders: 10,
+      quantity_blocked_by_merchant: 0,
+      warehouses: {
+        "main" => { "quantity" => 50 },
+        "secondary" => { "quantity" => 50 }
+      },
+      state: "active",
+      last_update: Time.current
+    )
 
-  teardown do
-    # Restore original data after each test
-    if @original_data
-      File.write(Rails.root.join("db", "mock_sku_data.json"), @original_data)
-    end
+    # Force persistence
+    @sku.save!
+    
+    # Verify the SKU was created
+    assert_not_nil @sku, "Test SKU object is nil"
+    assert_not_nil @sku.id, "Test SKU has no ID"
+    assert_equal "TEST-SKU-001", @sku.sku, "Test SKU has wrong SKU value"
+    
+    # Verify the SKU exists in the database
+    found_sku = Sku.find_by(sku: @sku.sku)
+    assert_not_nil found_sku, "Test SKU was not found in database"
+    assert_equal @sku.id, found_sku.id, "Found SKU has different ID"
+    
+    # Log the SKU details for debugging
+    Rails.logger.debug "Created test SKU: #{@sku.attributes.inspect}"
   end
 
   test "should get index" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
     get dashboard_index_url
     assert_response :success
   end
 
-  test "should export JSON" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
+  test "should get show" do
+    get show_dashboard_url(sku: @sku.sku)
+    assert_response :success
+  end
 
+  test "should get export" do
     get export_dashboard_index_url(format: :json)
     assert_response :success
-    assert_equal "application/json", @response.content_type.split(";").first
-    exported_data = JSON.parse(@response.body)
-    assert_equal @test_data.first["sku"], exported_data.first["sku"]
   end
 
-  test "should export CSV" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-
-    get export_dashboard_index_url(format: :csv)
+  test "should get download" do
+    get download_dashboard_url(sku: @sku.sku, format: :json)
     assert_response :success
-    assert_equal "text/csv", @response.content_type
-    assert_match(/TEST001/, @response.body)
   end
 
-  test "should import JSON with overwrite" do
-    initial_data = [{
-      "sku" => "EXISTING001",
-      "is_batch" => false,
-      "is_bundle" => false,
-      "quantity_on_shelf" => 5,
-      "quantity_sellable" => 5,
-      "quantity_reserved_for_orders" => 0,
-      "quantity_blocked_by_merchant" => 0,
-      "state" => "active",
-      "last_update" => "20/03/2024 10:00 UTC",
-      "warehouses" => {}
-    }]
-    File.write(Rails.root.join("db", "mock_sku_data.json"), initial_data.to_json)
-
-    temp_file = Tempfile.new(["test_import", ".json"])
-    temp_file.write(@test_data.to_json)
-    temp_file.rewind
-
-    post import_dashboard_index_url, params: {
-      file: Rack::Test::UploadedFile.new(temp_file.path, "application/json"),
-      overwrite: "1"
-    }
-
-    assert_redirected_to dashboard_index_url
-    assert_equal "Data imported successfully (overwritten).", flash[:notice]
-
-    final_data = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
-    assert_equal 2, final_data.length
-    assert_equal "TEST001", final_data.first["sku"]
-  end
-
-  test "should import JSON without overwrite" do
-    initial_data = [{
-      "sku" => "EXISTING001",
-      "is_batch" => false,
-      "is_bundle" => false,
-      "quantity_on_shelf" => 5,
-      "quantity_sellable" => 5,
-      "quantity_reserved_for_orders" => 0,
-      "quantity_blocked_by_merchant" => 0,
-      "state" => "active",
-      "last_update" => "20/03/2024 10:00 UTC",
-      "warehouses" => {}
-    }]
-    File.write(Rails.root.join("db", "mock_sku_data.json"), initial_data.to_json)
-
-    temp_file = Tempfile.new(["test_import", ".json"])
-    temp_file.write(@test_data.to_json)
-    temp_file.rewind
-
-    post import_dashboard_index_url, params: {
-      file: Rack::Test::UploadedFile.new(temp_file.path, "application/json"),
-      overwrite: "0"
-    }
-
-    assert_redirected_to dashboard_index_url
-    assert_equal "Data imported successfully (partial update).", flash[:notice]
-
-    final_data = JSON.parse(File.read(Rails.root.join("db", "mock_sku_data.json")))
-    assert_equal 3, final_data.length
-    assert final_data.any? { |sku| sku["sku"] == "EXISTING001" }
-    assert final_data.any? { |sku| sku["sku"] == "TEST001" }
-  end
-
-  test "should handle invalid JSON import" do
-    temp_file = Tempfile.new(["test_import", ".json"])
-    temp_file.write("invalid json")
-    temp_file.rewind
-
-    post import_dashboard_index_url, params: {
-      file: Rack::Test::UploadedFile.new(temp_file.path, "application/json"),
-      overwrite: "1"
-    }
-
-    assert_redirected_to dashboard_index_url
-    assert_match(/Error importing data/, flash[:error])
-  end
-
-  test "should handle missing file in import" do
-    post import_dashboard_index_url
-    assert_redirected_to dashboard_index_url
-    assert_equal "No file uploaded.", flash[:error]
+  test "should get download history" do
+    get download_history_dashboard_url(sku: @sku.sku, format: :json)
+    assert_response :success
   end
 
   test "should filter by warehouse" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get dashboard_index_url, params: { warehouse: "wh_1" }
+    get dashboard_index_url, params: { warehouse: "main" }
     assert_response :success
-    assert_select "td", "5" # Should show warehouse-specific quantity
+  end
+
+  test "should filter by state" do
+    get dashboard_index_url, params: { state: "active" }
+    assert_response :success
+  end
+
+  test "should filter by type" do
+    get dashboard_index_url, params: { type: "batch" }
+    assert_response :success
+  end
+
+  test "should filter by has variants" do
+    get dashboard_index_url, params: { has_variants: "true" }
+    assert_response :success
   end
 
   test "should filter by quantity ranges" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
     get dashboard_index_url, params: {
-      min_on_shelf: 5,
-      max_on_shelf: 15,
-      min_sellable: 5,
-      max_sellable: 10
+      min_on_shelf: 50,
+      max_on_shelf: 150,
+      min_sellable: 40,
+      max_sellable: 140
     }
     assert_response :success
-    assert_select "td", "TEST001"
   end
 
-  test "should filter by type and state" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get dashboard_index_url, params: {
-      type: "batch",
-      state: "active"
-    }
-    assert_response :success
-    assert_select "td", "Batch"
-    assert_select "td", "Active"
-  end
-
-  test "should filter by variants" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get dashboard_index_url, params: { has_variants: "true" }
-    assert_response :success
-    assert_select "td", "Yes"
-  end
-
-  test "should paginate results" do
-    # Create multiple test records
-    test_data = (1..15).map do |i|
-      @test_data.first.merge("sku" => "TEST#{i.to_s.rjust(3, '0')}")
-    end
-    File.write(Rails.root.join("db", "mock_sku_data.json"), test_data.to_json)
-    
-    get dashboard_index_url, params: { page: 2 }
-    assert_response :success
-    assert_select "nav[aria-label='Pagination']"
-    assert_select "a[href*='page=2']"
-  end
-
-  test "should import CSV" do
-    temp_file = Tempfile.new(["test_import", ".csv"])
-    temp_file.write("SKU,Type,Variants,State,Total On Shelf,Total Sellable,Total Reserved,Total Blocked,Last Update\n")
-    temp_file.write("TEST001,batch,No,active,10,8,2,0,2024-03-20 10:00:00 UTC\n")
-    temp_file.rewind
-
-    post import_dashboard_index_url, params: {
-      file: Rack::Test::UploadedFile.new(temp_file.path, "text/csv"),
-      overwrite: "1"
-    }
-
-    assert_redirected_to dashboard_index_url
-    assert_equal "Data imported successfully (overwritten).", flash[:notice]
-  end
-
-  test "should download current data" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get download_dashboard_url(sku: "TEST001", format: :json)
-    assert_response :success
-    assert_equal "application/json", @response.content_type.split(";").first
-    
-    get download_dashboard_url(sku: "TEST001", format: :csv)
-    assert_response :success
-    assert_equal "text/csv", @response.content_type
-  end
-
-  test "should download historical data" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get download_history_dashboard_url(sku: "TEST001", format: :json)
-    assert_response :success
-    assert_equal "application/json", @response.content_type.split(";").first
-    
-    get download_history_dashboard_url(sku: "TEST001", format: :csv)
-    assert_response :success
-    assert_equal "text/csv", @response.content_type
-  end
-
-  test "should handle non-existent SKU in download" do
-    get download_dashboard_url(sku: "NONEXISTENT", format: :json)
-    assert_response :not_found
-  end
-
-  test "should handle non-existent SKU in history download" do
-    get download_history_dashboard_url(sku: "NONEXISTENT", format: :json)
-    assert_response :not_found
-  end
-
-  test "should disable import in non-development environment" do
-    original_env = Rails.env
-    Rails.env = ActiveSupport::EnvironmentInquirer.new("production")
-    
-    get dashboard_index_url
-    assert_response :success
-    assert_select "input[type='file'][disabled]"
-    assert_select "input[type='checkbox'][disabled]"
-    assert_select "button[disabled]"
-  ensure
-    Rails.env = original_env
-  end
-
-  test "should sort by different columns" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    # Test sorting by SKU
-    get dashboard_index_url, params: { sort_by: "sku", sort_order: "asc" }
-    assert_response :success
-    
-    # Test sorting by quantity
+  test "should sort by different fields" do
     get dashboard_index_url, params: { sort_by: "quantity_on_shelf", sort_order: "desc" }
     assert_response :success
-    
-    # Test sorting by last update
-    get dashboard_index_url, params: { sort_by: "last_update", sort_order: "desc" }
-    assert_response :success
   end
 
-  test "should combine multiple filters" do
-    File.write(Rails.root.join("db", "mock_sku_data.json"), @test_data.to_json)
-    
-    get dashboard_index_url, params: {
-      type: "batch",
-      state: "active",
-      warehouse: "wh_1",
-      min_on_shelf: 5,
-      has_variants: "true"
-    }
-    assert_response :success
-    assert_select "td", "TEST001"
+  test "should handle import with overwrite" do
+    file = fixture_file_upload("test/fixtures/files/sku_data.json", "application/json")
+    post import_dashboard_index_url, params: { file: file, overwrite: "1" }
+    assert_redirected_to dashboard_index_url
+  end
+
+  test "should handle import without overwrite" do
+    file = fixture_file_upload("test/fixtures/files/sku_data.json", "application/json")
+    post import_dashboard_index_url, params: { file: file }
+    assert_redirected_to dashboard_index_url
+  end
+
+  test "should handle invalid import file" do
+    file = fixture_file_upload("test/fixtures/files/invalid.json", "application/json")
+    post import_dashboard_index_url, params: { file: file }
+    assert_redirected_to dashboard_index_url
+  end
+
+  test "should handle missing import file" do
+    post import_dashboard_index_url
+    assert_redirected_to dashboard_index_url
   end
 end

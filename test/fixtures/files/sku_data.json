@@ -1,1 +1,164 @@
- 
+[
+  {
+    "sku": "IMPORT-SKU-001",
+    "is_batch": true,
+    "is_bundle": false,
+    "has_variants": true,
+    "quantity_on_shelf": 30,
+    "quantity_sellable": 12,
+    "quantity_reserved_for_orders": 12,
+    "quantity_blocked_by_merchant": 6,
+    "batches": {
+      "b1": {
+        "quantity_on_shelf": "2",
+        "quantity_sellable": "1",
+        "quantity_reserved_for_orders": "1",
+        "quantity_blocked_by_merchant": "0"
+      },
+      "b2": {
+        "quantity_on_shelf": "4",
+        "quantity_sellable": "1",
+        "quantity_reserved_for_orders": "2",
+        "quantity_blocked_by_merchant": "1"
+      },
+      "b3": {
+        "quantity_on_shelf": "6",
+        "quantity_sellable": "1",
+        "quantity_reserved_for_orders": "3",
+        "quantity_blocked_by_merchant": "2"
+      }
+    },
+    "variants": {
+      "v1": {
+        "quantity_on_shelf": "3",
+        "quantity_sellable": "2",
+        "quantity_reserved_for_orders": "1",
+        "quantity_blocked_by_merchant": "0"
+      },
+      "v2": {
+        "quantity_on_shelf": "6",
+        "quantity_sellable": "3",
+        "quantity_reserved_for_orders": "2",
+        "quantity_blocked_by_merchant": "1"
+      },
+      "v3": {
+        "quantity_on_shelf": "9",
+        "quantity_sellable": "4",
+        "quantity_reserved_for_orders": "3",
+        "quantity_blocked_by_merchant": "2"
+      }
+    },
+    "warehouses": {
+      "wh_1": {
+        "quantity_on_shelf": "5",
+        "quantity_sellable": "2",
+        "quantity_reserved_for_orders": "2",
+        "quantity_blocked_by_merchant": "1",
+        "last_update": "20/03/2024 10:00 UTC",
+        "batches": {
+          "b1": {
+            "quantity_on_shelf": "2",
+            "quantity_sellable": "1",
+            "quantity_reserved_for_orders": "1",
+            "quantity_blocked_by_merchant": "0"
+          },
+          "b2": {
+            "quantity_on_shelf": "4",
+            "quantity_sellable": "1",
+            "quantity_reserved_for_orders": "2",
+            "quantity_blocked_by_merchant": "1"
+          },
+          "b3": {
+            "quantity_on_shelf": "6",
+            "quantity_sellable": "1",
+            "quantity_reserved_for_orders": "3",
+            "quantity_blocked_by_merchant": "2"
+          }
+        },
+        "variants": {
+          "v1": {
+            "quantity_on_shelf": "3",
+            "quantity_sellable": "2",
+            "quantity_reserved_for_orders": "1",
+            "quantity_blocked_by_merchant": "0"
+          },
+          "v2": {
+            "quantity_on_shelf": "6",
+            "quantity_sellable": "3",
+            "quantity_reserved_for_orders": "2",
+            "quantity_blocked_by_merchant": "1"
+          },
+          "v3": {
+            "quantity_on_shelf": "9",
+            "quantity_sellable": "4",
+            "quantity_reserved_for_orders": "3",
+            "quantity_blocked_by_merchant": "2"
+          }
+        }
+      }
+    },
+    "state": "active",
+    "last_update": "2024-03-20T08:00:00.000Z"
+  },
+  {
+    "sku": "IMPORT-SKU-002",
+    "is_batch": false,
+    "is_bundle": true,
+    "has_variants": true,
+    "quantity_on_shelf": 45,
+    "quantity_sellable": 18,
+    "quantity_reserved_for_orders": 18,
+    "quantity_blocked_by_merchant": 9,
+    "variants": {
+      "v1": {
+        "quantity_on_shelf": "15",
+        "quantity_sellable": "6",
+        "quantity_reserved_for_orders": "6",
+        "quantity_blocked_by_merchant": "3"
+      },
+      "v2": {
+        "quantity_on_shelf": "15",
+        "quantity_sellable": "6",
+        "quantity_reserved_for_orders": "6",
+        "quantity_blocked_by_merchant": "3"
+      },
+      "v3": {
+        "quantity_on_shelf": "15",
+        "quantity_sellable": "6",
+        "quantity_reserved_for_orders": "6",
+        "quantity_blocked_by_merchant": "3"
+      }
+    },
+    "warehouses": {
+      "wh_1": {
+        "quantity_on_shelf": "15",
+        "quantity_sellable": "6",
+        "quantity_reserved_for_orders": "6",
+        "quantity_blocked_by_merchant": "3",
+        "last_update": "20/03/2024 10:00 UTC",
+        "variants": {
+          "v1": {
+            "quantity_on_shelf": "5",
+            "quantity_sellable": "2",
+            "quantity_reserved_for_orders": "2",
+            "quantity_blocked_by_merchant": "1"
+          },
+          "v2": {
+            "quantity_on_shelf": "5",
+            "quantity_sellable": "2",
+            "quantity_reserved_for_orders": "2",
+            "quantity_blocked_by_merchant": "1"
+          },
+          "v3": {
+            "quantity_on_shelf": "5",
+            "quantity_sellable": "2",
+            "quantity_reserved_for_orders": "2",
+            "quantity_blocked_by_merchant": "1"
+          }
+        }
+      }
+    },
+    "state": "active",
+    "last_update": "2024-03-20T08:00:00.000Z"
+  }
+] 

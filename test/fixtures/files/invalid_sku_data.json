@@ -1,0 +1,55 @@
+[
+  {
+    "sku": "INVALID-SKU-001",
+    "is_batch": "not_a_boolean",
+    "is_bundle": false,
+    "has_variants": true,
+    "quantity_on_shelf": -100,
+    "quantity_sellable": 90,
+    "quantity_reserved_for_orders": 10,
+    "quantity_blocked_by_merchant": 0,
+    "batches": {
+      "b1": {
+        "quantity_on_shelf": "invalid",
+        "quantity_sellable": "1",
+        "quantity_reserved_for_orders": "1",
+        "quantity_blocked_by_merchant": "0"
+      }
+    },
+    "variants": {
+      "v1": {
+        "quantity_on_shelf": "invalid",
+        "quantity_sellable": "2",
+        "quantity_reserved_for_orders": "1",
+        "quantity_blocked_by_merchant": "0"
+      }
+    },
+    "warehouses": {
+      "wh_1": {
+        "quantity_on_shelf": "invalid",
+        "quantity_sellable": "2",
+        "quantity_reserved_for_orders": "2",
+        "quantity_blocked_by_merchant": "1",
+        "last_update": "invalid_date",
+        "batches": {
+          "b1": {
+            "quantity_on_shelf": "invalid",
+            "quantity_sellable": "1",
+            "quantity_reserved_for_orders": "1",
+            "quantity_blocked_by_merchant": "0"
+          }
+        },
+        "variants": {
+          "v1": {
+            "quantity_on_shelf": "invalid",
+            "quantity_sellable": "2",
+            "quantity_reserved_for_orders": "1",
+            "quantity_blocked_by_merchant": "0"
+          }
+        }
+      }
+    },
+    "state": "invalid_state",
+    "last_update": "invalid_date"
+  }
+] 

@@ -12,7 +12,7 @@ class DashboardController < ApplicationController
       @skus = @skus.map do |sku|
         if sku.warehouses&.key?(params[:warehouse])
           wh_data = sku.warehouses[params[:warehouse]]
-          # Create a new hash with warehouse-specific values
+          # Create a new hash with warehouse-specific values but preserve nested structure
           {
             "sku" => sku.sku,
             "is_batch" => sku.is_batch,
@@ -24,7 +24,9 @@ class DashboardController < ApplicationController
             "quantity_reserved_for_orders" => wh_data["quantity_reserved_for_orders"],
             "quantity_blocked_by_merchant" => wh_data["quantity_blocked_by_merchant"],
             "last_update" => wh_data["last_update"],
-            "warehouses" => sku.warehouses # Keep for compatibility
+            "warehouses" => { params[:warehouse] => wh_data }, # Keep nested structure
+            "batches" => wh_data["batches"],
+            "variants" => wh_data["variants"]
           }
         else
           sku.attributes
@@ -34,7 +36,18 @@ class DashboardController < ApplicationController
       if params[:sort_by].present?
         sort_key = params[:sort_by]
         order = params[:sort_order] == "desc" ? -1 : 1
-        @skus = @skus.sort_by { |sku| sku[sort_key] || "" }
+        @skus = @skus.sort_by do |sku| 
+          value = sku[sort_key]
+          # Convert to integer for numeric fields, keep as string for others
+          if ["quantity_on_shelf", "quantity_sellable", "quantity_reserved_for_orders", "quantity_blocked_by_merchant"].include?(sort_key)
+            value.to_i
+          elsif ["has_variants", "is_batch", "is_bundle"].include?(sort_key)
+            # Convert boolean to string for consistent sorting
+            value.to_s
+          else
+            value || ""
+          end
+        end
         @skus.reverse! if order == -1
       end
     else
@@ -127,7 +140,10 @@ class DashboardController < ApplicationController
           "quantity_sellable" => wh_data["quantity_sellable"].to_i,
           "quantity_reserved_for_orders" => wh_data["quantity_reserved_for_orders"].to_i,
           "quantity_blocked_by_merchant" => wh_data["quantity_blocked_by_merchant"].to_i,
-          "last_update" => wh_data["last_update"]
+          "last_update" => wh_data["last_update"],
+          "warehouse" => warehouse,
+          "batches" => wh_data["batches"],
+          "variants" => wh_data["variants"]
         }
         Rails.logger.debug "EXPORT: Warehouse row for #{sku.sku}: #{row.inspect}"
         row
@@ -142,7 +158,10 @@ class DashboardController < ApplicationController
           "quantity_sellable" => sku.quantity_sellable,
           "quantity_reserved_for_orders" => sku.quantity_reserved_for_orders,
           "quantity_blocked_by_merchant" => sku.quantity_blocked_by_merchant,
-          "last_update" => sku.last_update&.strftime("%d/%m/%Y %H:%M UTC")
+          "last_update" => sku.last_update&.strftime("%d/%m/%Y %H:%M UTC"),
+          "warehouses" => sku.warehouses,
+          "batches" => sku.batches,
+          "variants" => sku.variants
         }
         Rails.logger.debug "EXPORT: Global row for #{sku.sku}: #{row.inspect}"
         row

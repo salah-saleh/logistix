@@ -457,6 +457,37 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal on_shelf_values, on_shelf_values.sort.reverse, "SKUs are not sorted by warehouse quantity_on_shelf desc"
   end
 
+  test "should sort by quantity_on_shelf ascending with warehouse filter" do
+    get dashboard_index_url, params: { warehouse: "wh_1", sort_by: "quantity_on_shelf", sort_order: "asc" }
+    assert_response :success
+    doc = Nokogiri::HTML(@response.body)
+    on_shelf_values = doc.css('tbody tr').map do |tr|
+      tds = tr.css('td')
+      tds[4]&.text.to_i
+    end.compact
+    # Check that the values are sorted ascending
+    assert_equal on_shelf_values, on_shelf_values.sort, "SKUs are not sorted by warehouse quantity_on_shelf asc"
+  end
+
+  test "should sort by sku with warehouse filter" do
+    get dashboard_index_url, params: { warehouse: "wh_1", sort_by: "sku", sort_order: "asc" }
+    assert_response :success
+    doc = Nokogiri::HTML(@response.body)
+    sku_values = doc.css('tbody tr').map do |tr|
+      tds = tr.css('td')
+      tds[0]&.text.strip
+    end.compact
+    # Check that the SKUs are sorted alphabetically
+    assert_equal sku_values, sku_values.sort, "SKUs are not sorted by sku asc"
+  end
+
+  test "should sort by has_variants with warehouse filter" do
+    get dashboard_index_url, params: { warehouse: "wh_1", sort_by: "has_variants", sort_order: "asc" }
+    assert_response :success
+    # This should not raise an error and should complete successfully
+    assert_response :success
+  end
+
   # Export tests
   test "should export filtered data as json" do
     get export_dashboard_index_url(format: :json), params: { state: "active" }
@@ -789,5 +820,44 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes @response.body, "TEST-SKU-002" # Should be included (has blocked=3 at top level)
     assert_includes @response.body, "TEST-SKU-003" # Should be included (has blocked=2 at top level)
     assert_includes @response.body, "TEST-SKU-004" # Should be included (has blocked=20 at top level)
+  end
+
+  test "should export nested warehouse structure when warehouse filter is applied" do
+    get export_dashboard_index_url(format: :json), params: { warehouse: "wh_1" }
+    assert_response :success
+    data = JSON.parse(@response.body)
+    
+    # Check that the export includes warehouse, batches, and variants fields
+    sku_with_batches = data.find { |sku| sku["sku"] == "TEST-SKU-001" }
+    assert_not_nil sku_with_batches["warehouse"], "Export should include warehouse field"
+    assert_not_nil sku_with_batches["batches"], "Export should include batches field"
+    assert_not_nil sku_with_batches["variants"], "Export should include variants field"
+    
+    # Check that batches and variants have the expected structure
+    assert sku_with_batches["batches"].is_a?(Hash), "Batches should be a hash"
+    assert sku_with_batches["variants"].is_a?(Hash), "Variants should be a hash"
+    
+    # Check that warehouse field contains the selected warehouse
+    assert_equal "wh_1", sku_with_batches["warehouse"], "Warehouse field should contain selected warehouse"
+  end
+
+  test "should preserve nested warehouse structure in UI when warehouse filter is applied" do
+    get dashboard_index_url, params: { warehouse: "wh_1" }
+    assert_response :success
+    
+    # Check that the view has access to nested warehouse data
+    assert_not_nil assigns(:skus)
+    sku_with_batches = assigns(:skus).find { |sku| sku["sku"] == "TEST-SKU-001" }
+    assert_not_nil sku_with_batches, "Should find TEST-SKU-001 in filtered results"
+    
+    # Check that warehouses field contains the selected warehouse with full structure
+    assert sku_with_batches["warehouses"].is_a?(Hash), "Warehouses should be a hash"
+    assert sku_with_batches["warehouses"].key?("wh_1"), "Should contain selected warehouse"
+    
+    # Check that batches and variants are preserved
+    assert_not_nil sku_with_batches["batches"], "Batches should be preserved"
+    assert_not_nil sku_with_batches["variants"], "Variants should be preserved"
+    assert sku_with_batches["batches"].is_a?(Hash), "Batches should be a hash"
+    assert sku_with_batches["variants"].is_a?(Hash), "Variants should be a hash"
   end
 end

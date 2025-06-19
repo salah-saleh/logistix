@@ -86,7 +86,7 @@ GEM
       msgpack (~> 1.2)
     brakeman (7.0.2)
       racc
-    bson (5.0.2)
+    bson (5.1.1)
     builder (3.3.0)
     capybara (3.40.0)
       addressable
@@ -175,11 +175,10 @@ GEM
     mongo (2.21.1)
       base64
       bson (>= 4.14.1, < 6.0.0)
-    mongoid (8.1.10)
+    mongoid (9.0.6)
       activemodel (>= 5.1, < 8.1, != 7.0.0)
       concurrent-ruby (>= 1.0.5, < 2.0)
       mongo (>= 2.18.0, < 3.0.0)
-      ruby2_keywords (~> 0.0.5)
     msgpack (1.8.0)
     net-imap (0.5.8)
       date
@@ -313,7 +312,6 @@ GEM
       rubocop-performance (>= 1.24)
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
-    ruby2_keywords (0.0.5)
     rubyzip (2.4.1)
     securerandom (0.4.1)
     selenium-webdriver (4.33.0)
@@ -420,7 +418,7 @@ DEPENDENCIES
   kaminari
   kaminari-activerecord
   kaminari-mongoid
-  mongoid (~> 8.1)
+  mongoid (~> 9.0)
   propshaft
   puma (>= 5.0)
   rails (~> 8.0.2)

@@ -41,7 +41,7 @@ gem "thruster", require: false
 # gem "image_processing", "~> 1.2"
 
 # Use MongoDB as the database
-gem "mongoid", "~> 8.1"
+gem "mongoid", "~> 9.0"
 
 # Use Kaminari's core pagination library
 gem "kaminari"

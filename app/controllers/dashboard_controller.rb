@@ -69,6 +69,14 @@ class DashboardController < ApplicationController
       render json: { error: "SKU not found", status: 404 }, status: :not_found
       return
     end
+
+    # On-the-fly historical data generation if missing
+    unless SkuHistory.where(sku: @sku.sku).exists?
+      Rails.logger.info "No SkuHistory found for #{@sku.sku}, generating on-the-fly."
+      # Use the shared method from the model for consistency
+      SkuHistory.generate_for_sku!(@sku)
+      Rails.logger.info "Generated and saved SkuHistory for #{@sku.sku} on-the-fly."
+    end
     render :show
   end
 
@@ -105,18 +113,26 @@ class DashboardController < ApplicationController
       return
     end
 
-    # Generate history from the SKU's attributes
-    history = [@sku.attributes]
+    # Fetch historical data from the SkuHistory collection
+    history = SkuHistory.where(sku: @sku.sku).order_by(snapshot_time: :desc).to_a
+    # If no history exists, generate it on-the-fly
+    if history.empty?
+      Rails.logger.info "No SkuHistory found for #{@sku.sku} (download), generating on-the-fly."
+      SkuHistory.generate_for_sku!(@sku)
+      history = SkuHistory.where(sku: @sku.sku).order_by(snapshot_time: :desc).to_a
+    end
+
+    # Convert history records to hashes for export
+    history_hashes = history.map(&:as_document)
 
     respond_to do |format|
-      format.json { render json: history }
+      format.json { render json: history_hashes }
       format.csv do
         # Flatten each historical data point for CSV
-        flattened_history = history.map { |point| point }
-        headers = flattened_history.first.keys
+        headers = history_hashes.first.keys
         csv_data = CSV.generate do |csv|
           csv << headers
-          flattened_history.each { |point| csv << headers.map { |h| point[h] } }
+          history_hashes.each { |point| csv << headers.map { |h| point[h] } }
         end
         send_data csv_data, filename: "#{@sku.sku}_historical_data.csv"
       end

@@ -1,13 +1,22 @@
 require "test_helper"
+require "securerandom"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
   setup do
     # Clean up the database before each test
     Mongoid.purge!
     
+    # Generate a unique suffix for this test run to avoid SKU uniqueness conflicts
+    @sku_suffix = SecureRandom.hex(4)
+
+    # Helper to append the suffix to a SKU
+    def unique_sku(base)
+      "#{base}-#{@sku_suffix}"
+    end
+
     # Create test data with more variety
     @sku = Sku.create!(
-      sku: "TEST-SKU-001",
+      sku: unique_sku("TEST-SKU-001"),
       is_batch: true,
       is_bundle: false,
       has_variants: true,
@@ -157,7 +166,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     # Create a bundle SKU with variants (random state)
     @bundle_sku = Sku.create!(
-      sku: "TEST-SKU-002",
+      sku: unique_sku("TEST-SKU-002"),
       is_batch: false,
       is_bundle: true,
       has_variants: true,
@@ -247,7 +256,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     # Create a simple SKU without variants (random state)
     @simple_sku = Sku.create!(
-      sku: "TEST-SKU-003",
+      sku: unique_sku("TEST-SKU-003"),
       is_batch: false,
       is_bundle: false,
       has_variants: false,
@@ -270,7 +279,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
     # Create a SKU with high blocked quantity
     @blocked_sku = Sku.create!(
-      sku: "TEST-SKU-004",
+      sku: unique_sku("TEST-SKU-004"),
       is_batch: true,
       is_bundle: false,
       has_variants: false,
@@ -297,7 +306,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     # Verify the SKUs were created
     assert_not_nil @sku, "Test SKU object is nil"
     assert_not_nil @sku.id, "Test SKU has no ID"
-    assert_equal "TEST-SKU-001", @sku.sku, "Test SKU has wrong SKU value"
+    assert @sku.sku.end_with?(@sku_suffix), "Test SKU does not have unique suffix"
     
     # Verify the SKU exists in the database
     found_sku = Sku.find_by(sku: @sku.sku)
@@ -306,6 +315,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     
     # Log the SKU details for debugging
     Rails.logger.debug "Created test SKUs: #{[@sku, @bundle_sku, @simple_sku, @blocked_sku].map(&:attributes).inspect}"
+    Rails.logger.debug "SKUs in DB after setup: #{Sku.all.map(&:sku).inspect}"
   end
 
   test "should get index" do
@@ -313,9 +323,44 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "should get show" do
+  test "should get show for valid SKU" do
     get show_dashboard_url(sku: @sku.sku)
     assert_response :success
+    assert_includes @response.body, @sku.sku
+  end
+
+  test "should return 404 for invalid SKU on show" do
+    get show_dashboard_url(sku: "NON-EXISTENT-SKU")
+    assert_response :not_found
+    assert_includes @response.body, "SKU not found"
+  end
+
+  test "should generate SkuHistory on-the-fly if missing when showing SKU" do
+    # Ensure no SkuHistory exists for this SKU
+    SkuHistory.where(sku: @sku.sku).delete_all
+    assert_equal 0, SkuHistory.where(sku: @sku.sku).count
+    get show_dashboard_url(sku: @sku.sku)
+    assert_response :success
+    # After show, SkuHistory should be present
+    assert SkuHistory.where(sku: @sku.sku).count > 0, "SkuHistory should be generated on-the-fly"
+  end
+
+  test "should not duplicate SkuHistory if already present when showing SKU" do
+    # Generate history first
+    SkuHistory.generate_for_sku!(@sku)
+    count_before = SkuHistory.where(sku: @sku.sku).count
+    get show_dashboard_url(sku: @sku.sku)
+    assert_response :success
+    count_after = SkuHistory.where(sku: @sku.sku).count
+    assert_equal count_before, count_after, "SkuHistory should not be duplicated"
+  end
+
+  test "show page displays correct SKU data" do
+    get show_dashboard_url(sku: @sku.sku)
+    assert_response :success
+    assert_includes @response.body, @sku.sku
+    assert_includes @response.body, @sku.state.capitalize
+    assert_includes @response.body, @sku.quantity_on_shelf.to_s
   end
 
   test "should get export" do
@@ -337,37 +382,38 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   test "should filter by state" do
     get dashboard_index_url, params: { state: "active" }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_not_includes @response.body, "TEST-SKU-002" # inactive
-    assert_includes @response.body, "TEST-SKU-003"
-    assert_not_includes @response.body, "TEST-SKU-004" # inactive
+    assert_includes @response.body, @sku.sku
+    assert_not_includes @response.body, @bundle_sku.sku # inactive
+    assert_includes @response.body, @simple_sku.sku
+    assert_not_includes @response.body, @blocked_sku.sku # inactive
   end
 
   test "should filter by type batch" do
     get dashboard_index_url, params: { type: "batch" }
+    Rails.logger.debug "SKUs in DB at assertion: #{Sku.all.map(&:sku).inspect}"
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_not_includes @response.body, "TEST-SKU-002" # bundle
-    assert_not_includes @response.body, "TEST-SKU-003" # neither
-    assert_includes @response.body, "TEST-SKU-004"
+    assert_includes @response.body, @sku.sku
+    assert_not_includes @response.body, @bundle_sku.sku # bundle
+    assert_not_includes @response.body, @simple_sku.sku # neither
+    assert_includes @response.body, @blocked_sku.sku
   end
 
   test "should filter by type bundle" do
     get dashboard_index_url, params: { type: "bundle" }
     assert_response :success
-    assert_not_includes @response.body, "TEST-SKU-001" # batch
-    assert_includes @response.body, "TEST-SKU-002"
-    assert_not_includes @response.body, "TEST-SKU-003" # neither
-    assert_not_includes @response.body, "TEST-SKU-004" # batch
+    assert_not_includes @response.body, @sku.sku # batch
+    assert_includes @response.body, @bundle_sku.sku
+    assert_not_includes @response.body, @simple_sku.sku # neither
+    assert_not_includes @response.body, @blocked_sku.sku # batch
   end
 
   test "should filter by has variants" do
     get dashboard_index_url, params: { has_variants: "true" }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_includes @response.body, "TEST-SKU-002"
-    assert_not_includes @response.body, "TEST-SKU-003" # has_variants: false
-    assert_not_includes @response.body, "TEST-SKU-004" # has_variants: false
+    assert_includes @response.body, @sku.sku
+    assert_includes @response.body, @bundle_sku.sku
+    assert_not_includes @response.body, @simple_sku.sku # has_variants: false
+    assert_not_includes @response.body, @blocked_sku.sku # has_variants: false
   end
 
   test "should filter by quantity ranges" do
@@ -380,62 +426,62 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       max_reserved: 20
     }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001" # 30 on shelf, 12 sellable, 12 reserved
-    assert_not_includes @response.body, "TEST-SKU-002" # 45 on shelf (too high)
-    assert_not_includes @response.body, "TEST-SKU-003" # 20 on shelf, 15 sellable, 3 reserved (too low)
-    assert_not_includes @response.body, "TEST-SKU-004" # 50 on shelf (too high)
+    assert_includes @response.body, @sku.sku # 30 on shelf, 12 sellable, 12 reserved
+    assert_not_includes @response.body, @bundle_sku.sku # 45 on shelf (too high)
+    assert_not_includes @response.body, @simple_sku.sku # 20 on shelf, 15 sellable, 3 reserved (too low)
+    assert_not_includes @response.body, @blocked_sku.sku # 50 on shelf (too high)
   end
 
   test "should filter by warehouse" do
     get dashboard_index_url, params: { warehouse: "wh_1" }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_includes @response.body, "TEST-SKU-002"
-    assert_includes @response.body, "TEST-SKU-003"
-    assert_includes @response.body, "TEST-SKU-004"
+    assert_includes @response.body, @sku.sku
+    assert_includes @response.body, @bundle_sku.sku
+    assert_includes @response.body, @simple_sku.sku
+    assert_includes @response.body, @blocked_sku.sku
   end
 
   test "should filter by batch" do
     get dashboard_index_url, params: { batch: "b1" }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_not_includes @response.body, "TEST-SKU-002" # no batches
-    assert_not_includes @response.body, "TEST-SKU-003" # no batches
-    assert_not_includes @response.body, "TEST-SKU-004" # no batches
+    assert_includes @response.body, @sku.sku
+    assert_not_includes @response.body, @bundle_sku.sku # no batches
+    assert_not_includes @response.body, @simple_sku.sku # no batches
+    assert_not_includes @response.body, @blocked_sku.sku # no batches
   end
 
   test "should filter by variant" do
     get dashboard_index_url, params: { variant: "v1" }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001"
-    assert_includes @response.body, "TEST-SKU-002"
-    assert_not_includes @response.body, "TEST-SKU-003" # no variants
-    assert_not_includes @response.body, "TEST-SKU-004" # no variants
+    assert_includes @response.body, @sku.sku
+    assert_includes @response.body, @bundle_sku.sku
+    assert_not_includes @response.body, @simple_sku.sku # no variants
+    assert_not_includes @response.body, @blocked_sku.sku # no variants
   end
 
   # Sorting tests
   test "should sort by quantity_on_shelf ascending" do
     get dashboard_index_url, params: { sort_by: "quantity_on_shelf", sort_order: "asc" }
     assert_response :success
-    assert_match(/TEST-SKU-003.*TEST-SKU-001.*TEST-SKU-002.*TEST-SKU-004/m, @response.body)
+    assert_match(/#{@simple_sku.sku}.*#{@sku.sku}.*#{@bundle_sku.sku}.*#{@blocked_sku.sku}/m, @response.body)
   end
 
   test "should sort by quantity_on_shelf descending" do
     get dashboard_index_url, params: { sort_by: "quantity_on_shelf", sort_order: "desc" }
     assert_response :success
-    assert_match(/TEST-SKU-004.*TEST-SKU-002.*TEST-SKU-001.*TEST-SKU-003/m, @response.body)
+    assert_match(/#{@blocked_sku.sku}.*#{@bundle_sku.sku}.*#{@sku.sku}.*#{@simple_sku.sku}/m, @response.body)
   end
 
   test "should sort by sku ascending" do
     get dashboard_index_url, params: { sort_by: "sku", sort_order: "asc" }
     assert_response :success
-    assert_match(/TEST-SKU-001.*TEST-SKU-002.*TEST-SKU-003.*TEST-SKU-004/m, @response.body)
+    assert_match(/#{@sku.sku}.*#{@bundle_sku.sku}.*#{@simple_sku.sku}.*#{@blocked_sku.sku}/m, @response.body)
   end
 
   test "should sort by sku descending" do
     get dashboard_index_url, params: { sort_by: "sku", sort_order: "desc" }
     assert_response :success
-    assert_match(/TEST-SKU-004.*TEST-SKU-003.*TEST-SKU-002.*TEST-SKU-001/m, @response.body)
+    assert_match(/#{@blocked_sku.sku}.*#{@simple_sku.sku}.*#{@bundle_sku.sku}.*#{@sku.sku}/m, @response.body)
   end
 
   test "should sort by quantity_on_shelf with warehouse filter" do
@@ -493,11 +539,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get export_dashboard_index_url(format: :json), params: { state: "active" }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # Only TEST-SKU-001 and TEST-SKU-003 are active
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-002" } # inactive
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-004" } # inactive
+    assert_equal 2, data.length # Only @sku and @simple_sku are active
+    assert data.any? { |sku| sku["sku"] == @sku.sku }
+    assert_not data.any? { |sku| sku["sku"] == @bundle_sku.sku } # inactive
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku }
+    assert_not data.any? { |sku| sku["sku"] == @blocked_sku.sku } # inactive
   end
 
   test "should export filtered data as csv" do
@@ -506,7 +552,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "text/csv", @response.content_type
     csv_data = CSV.parse(@response.body)
     assert_equal 3, csv_data.length # Header + 2 rows
-    assert_equal ["TEST-SKU-001", "TEST-SKU-003"], csv_data[1..-1].map { |row| row[0] }.sort
+    assert_equal [@sku.sku, @simple_sku.sku], csv_data[1..-1].map { |row| row[0] }.sort
   end
 
   test "should export sorted data as json" do
@@ -514,7 +560,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     data = JSON.parse(@response.body)
     assert_equal 4, data.length
-    assert_equal ["TEST-SKU-004", "TEST-SKU-002", "TEST-SKU-001", "TEST-SKU-003"], data.map { |sku| sku["sku"] }
+    assert_equal [@blocked_sku.sku, @bundle_sku.sku, @sku.sku, @simple_sku.sku], data.map { |sku| sku["sku"] }
   end
 
   # Import tests
@@ -556,28 +602,28 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   test "should filter by minimum blocked quantity" do
     get dashboard_index_url, params: { min_blocked: 5 }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001" # 6 blocked
-    assert_includes @response.body, "TEST-SKU-002" # 9 blocked
-    assert_not_includes @response.body, "TEST-SKU-003" # 2 blocked
-    assert_includes @response.body, "TEST-SKU-004" # 20 blocked
+    assert_includes @response.body, @sku.sku # 6 blocked
+    assert_includes @response.body, @bundle_sku.sku # 9 blocked
+    assert_not_includes @response.body, @simple_sku.sku # 2 blocked
+    assert_includes @response.body, @blocked_sku.sku # 20 blocked
   end
 
   test "should filter by maximum blocked quantity" do
     get dashboard_index_url, params: { max_blocked: 5 }
     assert_response :success
-    assert_not_includes @response.body, "TEST-SKU-001" # 6 blocked
-    assert_not_includes @response.body, "TEST-SKU-002" # 9 blocked
-    assert_includes @response.body, "TEST-SKU-003" # 2 blocked
-    assert_not_includes @response.body, "TEST-SKU-004" # 20 blocked
+    assert_not_includes @response.body, @sku.sku # 6 blocked
+    assert_not_includes @response.body, @bundle_sku.sku # 9 blocked
+    assert_includes @response.body, @simple_sku.sku # 2 blocked
+    assert_not_includes @response.body, @blocked_sku.sku # 20 blocked
   end
 
   test "should filter by blocked quantity range" do
     get dashboard_index_url, params: { min_blocked: 5, max_blocked: 10 }
     assert_response :success
-    assert_includes @response.body, "TEST-SKU-001" # 6 blocked
-    assert_includes @response.body, "TEST-SKU-002" # 9 blocked
-    assert_not_includes @response.body, "TEST-SKU-003" # 2 blocked
-    assert_not_includes @response.body, "TEST-SKU-004" # 20 blocked
+    assert_includes @response.body, @sku.sku # 6 blocked
+    assert_includes @response.body, @bundle_sku.sku # 9 blocked
+    assert_not_includes @response.body, @simple_sku.sku # 2 blocked
+    assert_not_includes @response.body, @blocked_sku.sku # 20 blocked
   end
 
   test "should export filtered blocked data as json" do
@@ -585,10 +631,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     data = JSON.parse(@response.body)
     assert_equal 3, data.length
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" && sku["quantity_blocked_by_merchant"] == 6 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-002" && sku["quantity_blocked_by_merchant"] == 9 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-004" && sku["quantity_blocked_by_merchant"] == 20 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-003" }
+    assert data.any? { |sku| sku["sku"] == @sku.sku && sku["quantity_blocked_by_merchant"] == 6 }
+    assert data.any? { |sku| sku["sku"] == @bundle_sku.sku && sku["quantity_blocked_by_merchant"] == 9 }
+    assert data.any? { |sku| sku["sku"] == @blocked_sku.sku && sku["quantity_blocked_by_merchant"] == 20 }
+    assert_not data.any? { |sku| sku["sku"] == @simple_sku.sku }
   end
 
   test "should export filtered blocked data as csv" do
@@ -612,25 +658,25 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 4, data.length
     
     # Check that quantities match wh_1 warehouse data
-    sku_001 = data.find { |sku| sku["sku"] == "TEST-SKU-001" }
+    sku_001 = data.find { |sku| sku["sku"] == @sku.sku }
     assert_equal 5, sku_001["quantity_on_shelf"] # wh_1 quantity
     assert_equal 2, sku_001["quantity_sellable"] # wh_1 quantity
     assert_equal 2, sku_001["quantity_reserved_for_orders"] # wh_1 quantity
     assert_equal 1, sku_001["quantity_blocked_by_merchant"] # wh_1 quantity
     
-    sku_002 = data.find { |sku| sku["sku"] == "TEST-SKU-002" }
+    sku_002 = data.find { |sku| sku["sku"] == @bundle_sku.sku }
     assert_equal 15, sku_002["quantity_on_shelf"] # wh_1 quantity
     assert_equal 6, sku_002["quantity_sellable"] # wh_1 quantity
     assert_equal 6, sku_002["quantity_reserved_for_orders"] # wh_1 quantity
     assert_equal 3, sku_002["quantity_blocked_by_merchant"] # wh_1 quantity
     
-    sku_003 = data.find { |sku| sku["sku"] == "TEST-SKU-003" }
+    sku_003 = data.find { |sku| sku["sku"] == @simple_sku.sku }
     assert_equal 20, sku_003["quantity_on_shelf"] # wh_1 quantity
     assert_equal 15, sku_003["quantity_sellable"] # wh_1 quantity
     assert_equal 3, sku_003["quantity_reserved_for_orders"] # wh_1 quantity
     assert_equal 2, sku_003["quantity_blocked_by_merchant"] # wh_1 quantity
     
-    sku_004 = data.find { |sku| sku["sku"] == "TEST-SKU-004" }
+    sku_004 = data.find { |sku| sku["sku"] == @blocked_sku.sku }
     assert_equal 50, sku_004["quantity_on_shelf"] # wh_1 quantity
     assert_equal 20, sku_004["quantity_sellable"] # wh_1 quantity
     assert_equal 10, sku_004["quantity_reserved_for_orders"] # wh_1 quantity
@@ -644,15 +690,15 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     csv_data = CSV.parse(@response.body)
     assert_equal 5, csv_data.length # Header + 4 rows
     
-    # Find TEST-SKU-001 row and check wh_1 quantities
-    sku_001_row = csv_data.find { |row| row[0] == "TEST-SKU-001" }
+    # Find @sku row and check wh_1 quantities
+    sku_001_row = csv_data.find { |row| row[0] == @sku.sku }
     assert_equal "5", sku_001_row[5] # quantity_on_shelf
     assert_equal "2", sku_001_row[6] # quantity_sellable
     assert_equal "2", sku_001_row[7] # quantity_reserved_for_orders
     assert_equal "1", sku_001_row[8] # quantity_blocked_by_merchant
     
-    # Find TEST-SKU-002 row and check wh_1 quantities
-    sku_002_row = csv_data.find { |row| row[0] == "TEST-SKU-002" }
+    # Find @bundle_sku row and check wh_1 quantities
+    sku_002_row = csv_data.find { |row| row[0] == @bundle_sku.sku }
     assert_equal "15", sku_002_row[5] # quantity_on_shelf
     assert_equal "6", sku_002_row[6] # quantity_sellable
     assert_equal "6", sku_002_row[7] # quantity_reserved_for_orders
@@ -663,16 +709,16 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get export_dashboard_index_url(format: :json), params: { warehouse: "wh_2" }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # Only TEST-SKU-001 and TEST-SKU-002 have wh_2
+    assert_equal 2, data.length # Only @sku and @bundle_sku have wh_2
     
     # Check that quantities match wh_2 warehouse data
-    sku_001 = data.find { |sku| sku["sku"] == "TEST-SKU-001" }
+    sku_001 = data.find { |sku| sku["sku"] == @sku.sku }
     assert_equal 10, sku_001["quantity_on_shelf"] # wh_2 quantity
     assert_equal 4, sku_001["quantity_sellable"] # wh_2 quantity
     assert_equal 4, sku_001["quantity_reserved_for_orders"] # wh_2 quantity
     assert_equal 2, sku_001["quantity_blocked_by_merchant"] # wh_2 quantity
     
-    sku_002 = data.find { |sku| sku["sku"] == "TEST-SKU-002" }
+    sku_002 = data.find { |sku| sku["sku"] == @bundle_sku.sku }
     assert_equal 30, sku_002["quantity_on_shelf"] # wh_2 quantity
     assert_equal 12, sku_002["quantity_sellable"] # wh_2 quantity
     assert_equal 12, sku_002["quantity_reserved_for_orders"] # wh_2 quantity
@@ -687,11 +733,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 1, data.length # Only TEST-SKU-003 (active, has wh_1, and blocked >= 2)
+    assert_equal 1, data.length # Only @simple_sku (active, has wh_1, and blocked >= 2)
     
     # Verify the returned SKU has wh_1 quantities
     sku = data.first
-    assert_equal "TEST-SKU-003", sku["sku"]
+    assert_equal @simple_sku.sku, sku["sku"]
     assert_equal 20, sku["quantity_on_shelf"]
     assert_equal 2, sku["quantity_blocked_by_merchant"]
   end
@@ -701,66 +747,66 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get export_dashboard_index_url(format: :json), params: { min_on_shelf: 25 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 3, data.length # TEST-SKU-001 (30), TEST-SKU-002 (45), and TEST-SKU-004 (50)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" && sku["quantity_on_shelf"] == 30 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-002" && sku["quantity_on_shelf"] == 45 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-004" && sku["quantity_on_shelf"] == 50 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-003" } # 20 on shelf
+    assert_equal 3, data.length # @sku (30), @bundle_sku (45), and @blocked_sku (50)
+    assert data.any? { |sku| sku["sku"] == @sku.sku && sku["quantity_on_shelf"] == 30 }
+    assert data.any? { |sku| sku["sku"] == @bundle_sku.sku && sku["quantity_on_shelf"] == 45 }
+    assert data.any? { |sku| sku["sku"] == @blocked_sku.sku && sku["quantity_on_shelf"] == 50 }
+    assert_not data.any? { |sku| sku["sku"] == @simple_sku.sku } # 20 on shelf
   end
 
   test "should export with max_on_shelf filter" do
     get export_dashboard_index_url(format: :json), params: { max_on_shelf: 25 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 1, data.length # Only TEST-SKU-003 (20)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" && sku["quantity_on_shelf"] == 20 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-001" } # 30 on shelf
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-002" } # 45 on shelf
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-004" } # 50 on shelf
+    assert_equal 1, data.length # Only @simple_sku (20)
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku && sku["quantity_on_shelf"] == 20 }
+    assert_not data.any? { |sku| sku["sku"] == @sku.sku } # 30 on shelf
+    assert_not data.any? { |sku| sku["sku"] == @bundle_sku.sku } # 45 on shelf
+    assert_not data.any? { |sku| sku["sku"] == @blocked_sku.sku } # 50 on shelf
   end
 
   test "should export with min_sellable filter" do
     get export_dashboard_index_url(format: :json), params: { min_sellable: 15 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 3, data.length # TEST-SKU-003 (15), TEST-SKU-002 (18), and TEST-SKU-004 (20)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" && sku["quantity_sellable"] == 15 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-002" && sku["quantity_sellable"] == 18 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-004" && sku["quantity_sellable"] == 20 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-001" } # 12 sellable
+    assert_equal 3, data.length # @simple_sku (15), @bundle_sku (18), and @blocked_sku (20)
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku && sku["quantity_sellable"] == 15 }
+    assert data.any? { |sku| sku["sku"] == @bundle_sku.sku && sku["quantity_sellable"] == 18 }
+    assert data.any? { |sku| sku["sku"] == @blocked_sku.sku && sku["quantity_sellable"] == 20 }
+    assert_not data.any? { |sku| sku["sku"] == @sku.sku } # 12 sellable
   end
 
   test "should export with max_sellable filter" do
     get export_dashboard_index_url(format: :json), params: { max_sellable: 15 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # TEST-SKU-001 (12) and TEST-SKU-003 (15)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" && sku["quantity_sellable"] == 12 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" && sku["quantity_sellable"] == 15 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-002" } # 18 sellable
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-004" } # 20 sellable
+    assert_equal 2, data.length # @sku (12) and @simple_sku (15)
+    assert data.any? { |sku| sku["sku"] == @sku.sku && sku["quantity_sellable"] == 12 }
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku && sku["quantity_sellable"] == 15 }
+    assert_not data.any? { |sku| sku["sku"] == @bundle_sku.sku } # 18 sellable
+    assert_not data.any? { |sku| sku["sku"] == @blocked_sku.sku } # 20 sellable
   end
 
   test "should export with min_reserved filter" do
     get export_dashboard_index_url(format: :json), params: { min_reserved: 10 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 3, data.length # TEST-SKU-001 (12), TEST-SKU-002 (18), TEST-SKU-004 (10)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" && sku["quantity_reserved_for_orders"] == 12 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-002" && sku["quantity_reserved_for_orders"] == 18 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-004" && sku["quantity_reserved_for_orders"] == 10 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-003" } # 3 reserved
+    assert_equal 3, data.length # @sku (12), @bundle_sku (18), @blocked_sku (10)
+    assert data.any? { |sku| sku["sku"] == @sku.sku && sku["quantity_reserved_for_orders"] == 12 }
+    assert data.any? { |sku| sku["sku"] == @bundle_sku.sku && sku["quantity_reserved_for_orders"] == 18 }
+    assert data.any? { |sku| sku["sku"] == @blocked_sku.sku && sku["quantity_reserved_for_orders"] == 10 }
+    assert_not data.any? { |sku| sku["sku"] == @simple_sku.sku } # 3 reserved
   end
 
   test "should export with max_reserved filter" do
     get export_dashboard_index_url(format: :json), params: { max_reserved: 10 }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # TEST-SKU-003 (3) and TEST-SKU-004 (10)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" && sku["quantity_reserved_for_orders"] == 3 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-004" && sku["quantity_reserved_for_orders"] == 10 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-001" } # 12 reserved
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-002" } # 18 reserved
+    assert_equal 2, data.length # @simple_sku (3) and @blocked_sku (10)
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku && sku["quantity_reserved_for_orders"] == 3 }
+    assert data.any? { |sku| sku["sku"] == @blocked_sku.sku && sku["quantity_reserved_for_orders"] == 10 }
+    assert_not data.any? { |sku| sku["sku"] == @sku.sku } # 12 reserved
+    assert_not data.any? { |sku| sku["sku"] == @bundle_sku.sku } # 18 reserved
   end
 
   test "should export with multiple stock level filters" do
@@ -772,11 +818,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # TEST-SKU-001 (30 on shelf, 12 sellable) and TEST-SKU-003 (20 on shelf, 15 sellable)
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-001" }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-002" } # 45 on shelf (too high)
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-004" } # 50 on shelf (too high)
+    assert_equal 2, data.length # @sku (30 on shelf, 12 sellable) and @simple_sku (20 on shelf, 15 sellable)
+    assert data.any? { |sku| sku["sku"] == @sku.sku }
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku }
+    assert_not data.any? { |sku| sku["sku"] == @bundle_sku.sku } # 45 on shelf (too high)
+    assert_not data.any? { |sku| sku["sku"] == @blocked_sku.sku } # 50 on shelf (too high)
   end
 
   test "should export stock level filters as csv" do
@@ -800,11 +846,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     }
     assert_response :success
     data = JSON.parse(@response.body)
-    assert_equal 2, data.length # TEST-SKU-002 (15) and TEST-SKU-003 (20) from wh_1
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-002" && sku["quantity_on_shelf"] == 15 }
-    assert data.any? { |sku| sku["sku"] == "TEST-SKU-003" && sku["quantity_on_shelf"] == 20 }
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-001" } # 5 on shelf in wh_1 (too low)
-    assert_not data.any? { |sku| sku["sku"] == "TEST-SKU-004" } # 50 on shelf in wh_1 (too high)
+    assert_equal 2, data.length # @bundle_sku (15) and @simple_sku (20) from wh_1
+    assert data.any? { |sku| sku["sku"] == @bundle_sku.sku && sku["quantity_on_shelf"] == 15 }
+    assert data.any? { |sku| sku["sku"] == @simple_sku.sku && sku["quantity_on_shelf"] == 20 }
+    assert_not data.any? { |sku| sku["sku"] == @sku.sku } # 5 on shelf in wh_1 (too low)
+    assert_not data.any? { |sku| sku["sku"] == @blocked_sku.sku } # 50 on shelf in wh_1 (too high)
   end
 
   test "should filter by warehouse and stock levels in index" do
@@ -812,14 +858,14 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_index_url, params: { warehouse: "wh_1", min_blocked: 2 }
     assert_response :success
     # Should only show SKUs with blocked >= 2 in wh_1, but currently shows all SKUs in wh_1
-    # TEST-SKU-001 has batches/variants with blocked=2 in wh_1
-    # TEST-SKU-002 has top-level blocked=3 in wh_1 (should be included)
-    # TEST-SKU-003 has top-level blocked=2 in wh_1 (should be included)
-    # TEST-SKU-004 has top-level blocked=20 in wh_1 (should be included)
-    assert_includes @response.body, "TEST-SKU-001" # Should be included (has blocked=2 in batches/variants)
-    assert_includes @response.body, "TEST-SKU-002" # Should be included (has blocked=3 at top level)
-    assert_includes @response.body, "TEST-SKU-003" # Should be included (has blocked=2 at top level)
-    assert_includes @response.body, "TEST-SKU-004" # Should be included (has blocked=20 at top level)
+    # @sku has batches/variants with blocked=2 in wh_1
+    # @bundle_sku has top-level blocked=3 in wh_1 (should be included)
+    # @simple_sku has top-level blocked=2 in wh_1 (should be included)
+    # @blocked_sku has top-level blocked=20 in wh_1 (should be included)
+    assert_includes @response.body, @sku.sku # Should be included (has blocked=2 in batches/variants)
+    assert_includes @response.body, @bundle_sku.sku # Should be included (has blocked=3 at top level)
+    assert_includes @response.body, @simple_sku.sku # Should be included (has blocked=2 at top level)
+    assert_includes @response.body, @blocked_sku.sku # Should be included (has blocked=20 at top level)
   end
 
   test "should export nested warehouse structure when warehouse filter is applied" do
@@ -828,7 +874,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     data = JSON.parse(@response.body)
     
     # Check that the export includes warehouse, batches, and variants fields
-    sku_with_batches = data.find { |sku| sku["sku"] == "TEST-SKU-001" }
+    sku_with_batches = data.find { |sku| sku["sku"] == @sku.sku }
     assert_not_nil sku_with_batches["warehouse"], "Export should include warehouse field"
     assert_not_nil sku_with_batches["batches"], "Export should include batches field"
     assert_not_nil sku_with_batches["variants"], "Export should include variants field"
@@ -847,8 +893,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     
     # Check that the view has access to nested warehouse data
     assert_not_nil assigns(:skus)
-    sku_with_batches = assigns(:skus).find { |sku| sku["sku"] == "TEST-SKU-001" }
-    assert_not_nil sku_with_batches, "Should find TEST-SKU-001 in filtered results"
+    sku_with_batches = assigns(:skus).find { |sku| sku["sku"] == @sku.sku }
+    assert_not_nil sku_with_batches, "Should find @sku in filtered results"
     
     # Check that warehouses field contains the selected warehouse with full structure
     assert sku_with_batches["warehouses"].is_a?(Hash), "Warehouses should be a hash"
@@ -860,4 +906,6 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert sku_with_batches["batches"].is_a?(Hash), "Batches should be a hash"
     assert sku_with_batches["variants"].is_a?(Hash), "Variants should be a hash"
   end
+
+  # NOTE: If you are using Mongoid, consider running tests serially (DISABLE parallelization) to avoid DB state issues.
 end

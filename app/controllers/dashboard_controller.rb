@@ -298,6 +298,142 @@ class DashboardController < ApplicationController
     redirect_to dashboard_index_path
   end
 
+  # GET /dashboard/snapshots/:sku
+  # Returns paginated historical snapshots for a SKU with optional date filtering
+  def snapshots
+    Rails.logger.debug "Looking for SKU snapshots: #{params[:sku]}"
+    @sku = Sku.where(sku: params[:sku]).first
+    Rails.logger.debug "Found SKU: #{@sku.inspect}"
+    if @sku.nil?
+      render json: { error: "SKU not found", status: 404 }, status: :not_found
+      return
+    end
+
+    # Ensure historical data exists
+    unless SkuHistory.where(sku: @sku.sku).exists?
+      Rails.logger.info "No SkuHistory found for #{@sku.sku} (snapshots), generating on-the-fly."
+      SkuHistory.generate_for_sku!(@sku)
+      Rails.logger.info "Generated and saved SkuHistory for #{@sku.sku} on-the-fly."
+    end
+
+    # Build query with optional date filtering
+    query = SkuHistory.where(sku: @sku.sku)
+    
+    if params[:start_date].present?
+      start_date = Date.parse(params[:start_date]).beginning_of_day
+      query = query.where(:snapshot_time.gte => start_date)
+    end
+    
+    if params[:end_date].present?
+      end_date = Date.parse(params[:end_date]).end_of_day
+      query = query.where(:snapshot_time.lte => end_date)
+    end
+
+    # Pagination
+    page = (params[:page] || 1).to_i
+    per_page = (params[:per_page] || 10).to_i
+    total = query.count
+    snapshots = query.order_by(snapshot_time: :desc).skip((page - 1) * per_page).limit(per_page).to_a
+
+    # Calculate pagination info
+    start_item = (page - 1) * per_page + 1
+    end_item = [page * per_page, total].min
+    has_prev = page > 1
+    has_next = end_item < total
+
+    render json: {
+      snapshots: snapshots.map { |s| {
+        id: s.id.to_s,
+        snapshot_time: s.snapshot_time,
+        quantity_on_shelf: s.quantity_on_shelf,
+        quantity_sellable: s.quantity_sellable,
+        quantity_reserved_for_orders: s.quantity_reserved_for_orders,
+        quantity_blocked_by_merchant: s.quantity_blocked_by_merchant,
+        change_owner: s.change_owner
+      }},
+      pagination: {
+        page: page,
+        per_page: per_page,
+        total: total,
+        start: start_item,
+        end: end_item,
+        has_prev: has_prev,
+        has_next: has_next
+      }
+    }
+  end
+
+  # GET /dashboard/snapshots/:id
+  # Returns detailed information for a specific historical snapshot
+  def snapshot_details
+    snapshot = SkuHistory.find(params[:id])
+    
+    render json: {
+      id: snapshot.id.to_s,
+      sku: snapshot.sku,
+      snapshot_time: snapshot.snapshot_time,
+      quantity_on_shelf: snapshot.quantity_on_shelf,
+      quantity_sellable: snapshot.quantity_sellable,
+      quantity_reserved_for_orders: snapshot.quantity_reserved_for_orders,
+      quantity_blocked_by_merchant: snapshot.quantity_blocked_by_merchant,
+      warehouses: snapshot.warehouses,
+      batches: snapshot.batches,
+      variants: snapshot.variants,
+      change_owner: snapshot.change_owner
+    }
+  rescue Mongoid::Errors::DocumentNotFound
+    render json: { error: "Snapshot not found", status: 404 }, status: :not_found
+  end
+
+  # GET /dashboard/timeline/:sku
+  # Returns timeline data for chart visualization
+  def timeline
+    Rails.logger.debug "Looking for SKU timeline: #{params[:sku]}"
+    @sku = Sku.where(sku: params[:sku]).first
+    Rails.logger.debug "Found SKU: #{@sku.inspect}"
+    if @sku.nil?
+      render json: { error: "SKU not found", status: 404 }, status: :not_found
+      return
+    end
+
+    # Ensure historical data exists
+    unless SkuHistory.where(sku: @sku.sku).exists?
+      Rails.logger.info "No SkuHistory found for #{@sku.sku} (timeline), generating on-the-fly."
+      SkuHistory.generate_for_sku!(@sku)
+      Rails.logger.info "Generated and saved SkuHistory for #{@sku.sku} on-the-fly."
+    end
+
+    # Get timeline period (default 30 days)
+    days = (params[:days] || 30).to_i
+    start_date = days.days.ago.beginning_of_day
+    
+    # Get snapshots for the period
+    snapshots = SkuHistory.where(sku: @sku.sku)
+                         .where(:snapshot_time.gte => start_date)
+                         .order_by(snapshot_time: :asc)
+                         .to_a
+
+    # Group by day for chart data
+    timeline_data = snapshots.group_by { |s| s.snapshot_time.to_date }.map do |date, day_snapshots|
+      {
+        date: date.strftime("%Y-%m-%d"),
+        points: day_snapshots.map { |s| {
+          time: s.snapshot_time.strftime("%H:%M"),
+          quantity_on_shelf: s.quantity_on_shelf,
+          quantity_sellable: s.quantity_sellable,
+          quantity_reserved_for_orders: s.quantity_reserved_for_orders,
+          quantity_blocked_by_merchant: s.quantity_blocked_by_merchant
+        }}
+      }
+    end
+
+    render json: {
+      sku: @sku.sku,
+      period_days: days,
+      timeline_data: timeline_data
+    }
+  end
+
   private
 
   # Recursively collect all values for a given key in a hash

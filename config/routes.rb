@@ -7,6 +7,11 @@ Rails.application.routes.draw do
   get "dashboard/download/:sku", to: "dashboard#download", as: :download_dashboard
   get "dashboard/download_history/:sku", to: "dashboard#download_history", as: :download_history_dashboard
   post "dashboard/import", to: "dashboard#import", as: :import_dashboard_index
+  
+  # Historical data routes
+  get "dashboard/snapshots/:sku", to: "dashboard#snapshots", as: :snapshots_dashboard
+  get "dashboard/snapshot/:id", to: "dashboard#snapshot_details", as: :snapshot_details_dashboard
+  get "dashboard/timeline/:sku", to: "dashboard#timeline", as: :timeline_dashboard
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

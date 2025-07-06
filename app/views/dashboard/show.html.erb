@@ -1,234 +1,91 @@
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8" data-controller="sku-history" data-sku-history-sku-value="<%= @sku.sku %>">
   <div class="mb-6">
-    <a href="<%= dashboard_index_path %>" class="text-blue-600 hover:text-blue-800">
-      &larr; Back to Dashboard
-    </a>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">SKU: <%= @sku.sku %></h1>
+        <p class="text-gray-600 mt-2">Current State • Last Updated: <%= @sku.last_update.strftime("%B %d, %Y at %H:%M UTC") %></p>
+      </div>
+      <div class="flex space-x-4">
+        <a href="<%= download_history_dashboard_path(sku: @sku.sku, format: :json) %>" 
+           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Download History (JSON)
+        </a>
+        <a href="<%= download_history_dashboard_path(sku: @sku.sku, format: :csv) %>" 
+           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Download History (CSV)
+        </a>
+      </div>
+    </div>
   </div>
 
-  <div class="bg-white shadow rounded-lg p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-900">SKU Details: <%= @sku.sku %></h1>
-      <div class="flex items-center space-x-4">
-        <details class="relative inline-block">
-          <summary class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
-            Download Current Data
-            <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </summary>
-          <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-            <div class="py-1">
-              <%= link_to "Download as JSON", download_dashboard_path(@sku.sku, format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-              <%= link_to "Download as CSV", download_dashboard_path(@sku.sku, format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-            </div>
-          </div>
-        </details>
-
-        <details class="relative inline-block">
-          <summary class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
-            Download Historical Data
-            <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </summary>
-          <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-            <div class="py-1">
-              <%= link_to "Download as JSON", download_history_dashboard_path(@sku.sku, format: :json), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-              <%= link_to "Download as CSV", download_history_dashboard_path(@sku.sku, format: :csv), class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" %>
-            </div>
-          </div>
-        </details>
-
-        <span class="px-3 py-1 rounded-full text-sm font-medium <%= @sku.state == "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" %>">
-          <%= @sku.state.capitalize %>
+  <!-- Current State Section -->
+  <div class="bg-white shadow rounded-lg p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-900 mb-4">Current State</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="bg-blue-50 p-4 rounded-lg">
+        <div class="text-sm font-medium text-blue-600">On Shelf</div>
+        <div class="text-2xl font-bold text-blue-900"><%= @sku.quantity_on_shelf %></div>
+      </div>
+      <div class="bg-green-50 p-4 rounded-lg">
+        <div class="text-sm font-medium text-green-600">Sellable</div>
+        <div class="text-2xl font-bold text-green-900"><%= @sku.quantity_sellable %></div>
+      </div>
+      <div class="bg-yellow-50 p-4 rounded-lg">
+        <div class="text-sm font-medium text-yellow-600">Reserved</div>
+        <div class="text-2xl font-bold text-yellow-900"><%= @sku.quantity_reserved_for_orders %></div>
+      </div>
+      <div class="bg-red-50 p-4 rounded-lg">
+        <div class="text-sm font-medium text-red-600">Blocked</div>
+        <div class="text-2xl font-bold text-red-900"><%= @sku.quantity_blocked_by_merchant %></div>
+      </div>
+    </div>
+    
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="text-sm">
+        <span class="font-medium text-gray-500">Type:</span>
+        <span class="ml-2">
+          <% if @sku.is_batch %>
+            <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Batch</span>
+          <% elsif @sku.is_bundle %>
+            <span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">Bundle</span>
+          <% else %>
+            <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Standard</span>
+          <% end %>
+        </span>
+      </div>
+      <div class="text-sm">
+        <span class="font-medium text-gray-500">Variants:</span>
+        <span class="ml-2">
+          <% if @sku.has_variants %>
+            <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Yes</span>
+          <% else %>
+            <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">No</span>
+          <% end %>
+        </span>
+      </div>
+      <div class="text-sm">
+        <span class="font-medium text-gray-500">State:</span>
+        <span class="ml-2">
+          <% if @sku.state == "active" %>
+            <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Active</span>
+          <% else %>
+            <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Inactive</span>
+          <% end %>
         </span>
       </div>
     </div>
+  </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div class="bg-gray-50 p-4 rounded-lg">
-        <h2 class="text-lg font-semibold mb-4">Basic Information</h2>
-        <dl class="space-y-2">
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Type:</dt>
-            <dd class="font-medium">
-              <% if @sku.is_batch %>
-                Batch
-              <% elsif @sku.is_bundle %>
-                Bundle
-              <% else %>
-                Standard
-              <% end %>
-            </dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Has Variants:</dt>
-            <dd class="font-medium"><%= @sku.has_variants ? "Yes" : "No" %></dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Last Update:</dt>
-            <dd class="font-medium"><%= @sku.last_update %></dd>
-          </div>
-        </dl>
-      </div>
-
-      <div class="bg-gray-50 p-4 rounded-lg">
-        <h2 class="text-lg font-semibold mb-4">Total Quantities</h2>
-        <dl class="space-y-2">
-          <div class="flex justify-between">
-            <dt class="text-gray-600">On Shelf:</dt>
-            <dd class="font-medium"><%= @sku.quantity_on_shelf %></dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Sellable:</dt>
-            <dd class="font-medium"><%= @sku.quantity_sellable %></dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Reserved for Orders:</dt>
-            <dd class="font-medium"><%= @sku.quantity_reserved_for_orders %></dd>
-          </div>
-          <div class="flex justify-between">
-            <dt class="text-gray-600">Blocked by Merchant:</dt>
-            <dd class="font-medium"><%= @sku.quantity_blocked_by_merchant %></dd>
-          </div>
-        </dl>
-      </div>
-    </div>
-
-    <% if @sku.is_batch && @sku.batches.present? %>
-      <div class="mb-8">
-        <h2 class="text-lg font-semibold mb-4">Batches</h2>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">On Shelf</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sellable</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% @sku.batches.each do |batch_id, batch| %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= batch["quantity_on_shelf"] %>
-                    <% if batch["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% batch["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= batch["quantity_sellable"] %>
-                    <% if batch["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% batch["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= batch["quantity_reserved_for_orders"] %>
-                    <% if batch["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% batch["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= batch["quantity_blocked_by_merchant"] %>
-                    <% if batch["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% batch["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% end %>
-
-    <% if @sku.has_variants && @sku.variants.present? %>
-      <div class="mb-8">
-        <h2 class="text-lg font-semibold mb-4">Variants</h2>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variant ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">On Shelf</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sellable</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% @sku.variants.each do |variant_id, variant| %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= variant_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= variant["quantity_on_shelf"] %>
-                    <% if variant["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% variant["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= variant["quantity_sellable"] %>
-                    <% if variant["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% variant["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= variant["quantity_reserved_for_orders"] %>
-                    <% if variant["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% variant["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <%= variant["quantity_blocked_by_merchant"] %>
-                    <% if variant["warehouses"].present? %>
-                      <div class="mt-1 text-xs text-gray-400">
-                        <% variant["warehouses"].each do |wh_id, wh_data| %>
-                          <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
-                        <% end %>
-                      </div>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% end %>
-
-    <div>
-      <h2 class="text-lg font-semibold mb-4">Warehouse Distribution</h2>
+  <!-- Warehouse Distribution Section -->
+  <% if @sku.warehouses.present? %>
+    <div class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Warehouse Distribution</h2>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
@@ -254,6 +111,255 @@
             <% end %>
           </tbody>
         </table>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Batches Section -->
+  <% if @sku.is_batch && @sku.batches.present? %>
+    <div class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Batches</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">On Shelf</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sellable</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @sku.batches.each do |batch_id, batch| %>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_id %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= batch["quantity_on_shelf"] %>
+                  <% if batch["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% batch["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= batch["quantity_sellable"] %>
+                  <% if batch["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% batch["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= batch["quantity_reserved_for_orders"] %>
+                  <% if batch["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% batch["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= batch["quantity_blocked_by_merchant"] %>
+                  <% if batch["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% batch["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Variants Section -->
+  <% if @sku.has_variants && @sku.variants.present? %>
+    <div class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Variants</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variant ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">On Shelf</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sellable</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @sku.variants.each do |variant_id, variant| %>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= variant_id %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= variant["quantity_on_shelf"] %>
+                  <% if variant["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% variant["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_on_shelf"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= variant["quantity_sellable"] %>
+                  <% if variant["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% variant["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_sellable"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= variant["quantity_reserved_for_orders"] %>
+                  <% if variant["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% variant["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_reserved_for_orders"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <%= variant["quantity_blocked_by_merchant"] %>
+                  <% if variant["warehouses"].present? %>
+                    <div class="mt-1 text-xs text-gray-400">
+                      <% variant["warehouses"].each do |wh_id, wh_data| %>
+                        <div><%= wh_id %>: <%= wh_data["quantity_blocked_by_merchant"] %></div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Historical Timeline Section -->
+  <div class="bg-white shadow rounded-lg p-6 mb-8">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-semibold text-gray-900">Historical Timeline</h2>
+      <div class="flex space-x-2">
+        <button data-action="click->sku-history#timeline7d" 
+                data-timeline-days="7"
+                class="px-3 py-1 text-sm border rounded-md hover:bg-gray-50">
+          7 Days
+        </button>
+        <button data-action="click->sku-history#timeline30d" 
+                data-timeline-days="30"
+                class="px-3 py-1 text-sm border rounded-md bg-blue-100 text-blue-800">
+          30 Days
+        </button>
+        <button data-action="click->sku-history#timeline90d" 
+                data-timeline-days="90"
+                class="px-3 py-1 text-sm border rounded-md hover:bg-gray-50">
+          90 Days
+        </button>
+      </div>
+    </div>
+    
+    <!-- Timeline Chart -->
+    <div data-sku-history-target="timelineChart" class="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+      <div class="text-center">
+        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <p class="text-gray-500">Loading historical data...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historical Snapshots Section -->
+  <div class="bg-white shadow rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-semibold text-gray-900">Historical Snapshots</h2>
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2">
+          <label for="date-filter" class="text-sm font-medium text-gray-700">Date Range:</label>
+          <input type="date" 
+                 data-sku-history-target="dateFilterStart"
+                 class="text-sm border rounded-md px-2 py-1">
+          <span class="text-gray-500">to</span>
+          <input type="date" 
+                 data-sku-history-target="dateFilterEnd"
+                 class="text-sm border rounded-md px-2 py-1">
+        </div>
+        <button data-action="click->sku-history#filterSnapshots" 
+                class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          Filter
+        </button>
+      </div>
+    </div>
+
+    <!-- Snapshots Table -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">On Shelf</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sellable</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reserved</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Change Owner</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody data-sku-history-target="snapshotsTable" class="bg-white divide-y divide-gray-200">
+          <!-- Historical snapshots will be loaded here via Stimulus -->
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="mt-4 flex items-center justify-between">
+      <div class="text-sm text-gray-700">
+        Showing <span data-sku-history-target="snapshotsStart">1</span> to <span data-sku-history-target="snapshotsEnd">10</span> of <span data-sku-history-target="snapshotsTotal">0</span> snapshots
+      </div>
+      <div class="flex space-x-2">
+        <button data-action="click->sku-history#prevPage" 
+                data-sku-history-target="prevPage"
+                class="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50">
+          Previous
+        </button>
+        <button data-action="click->sku-history#nextPage" 
+                data-sku-history-target="nextPage"
+                class="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historical Snapshot Modal -->
+  <div data-sku-history-target="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="flex items-center justify-between p-6 border-b">
+          <h3 class="text-lg font-semibold text-gray-900">Historical Snapshot Details</h3>
+          <button data-action="click->sku-history#closeModal" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div data-sku-history-target="modalContent" class="p-6">
+          <!-- Modal content will be loaded here via Stimulus -->
+        </div>
       </div>
     </div>
   </div>

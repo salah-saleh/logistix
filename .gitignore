@@ -36,4 +36,26 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 
+# Ignore vendor directory (dependencies)
+/vendor/
+
+# Ignore node_modules if using npm/yarn
+/node_modules/
+
+# Ignore database files
+*.sqlite3
+*.sqlite3-*
+
+# Ignore coverage reports
+/coverage/
+
+# Ignore .DS_Store files (macOS)
+.DS_Store
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
 features.md

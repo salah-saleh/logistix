@@ -122,17 +122,22 @@ class DashboardController < ApplicationController
       history = SkuHistory.where(sku: @sku.sku).order_by(snapshot_time: :desc).to_a
     end
 
-    # Convert history records to hashes for export
-    history_hashes = history.map(&:as_document)
-
     respond_to do |format|
-      format.json { render json: history_hashes }
+      format.json { 
+        # For JSON, return the full data structure
+        history_hashes = history.map(&:as_document)
+        render json: history_hashes 
+      }
       format.csv do
-        # Flatten each historical data point for CSV
-        headers = history_hashes.first.keys
+        # For CSV, flatten the data structure
+        flattened_history = history.map { |snapshot| flatten_historical_data(snapshot) }
+        
+        # Generate headers from the first record
+        headers = flattened_history.first.keys
+        
         csv_data = CSV.generate do |csv|
           csv << headers
-          history_hashes.each { |point| csv << headers.map { |h| point[h] } }
+          flattened_history.each { |point| csv << headers.map { |h| point[h] } }
         end
         send_data csv_data, filename: "#{@sku.sku}_historical_data.csv"
       end
@@ -577,6 +582,25 @@ class DashboardController < ApplicationController
     flattened
   end
 
+  def flatten_historical_data(snapshot)
+    flattened = snapshot.as_document.dup
+    # Include warehouse data in the flattened output
+    if snapshot.warehouses.present?
+      snapshot.warehouses.each do |wh_id, wh_data|
+        flattened["#{wh_id}_on_shelf"] = wh_data["quantity_on_shelf"]
+        flattened["#{wh_id}_sellable"] = wh_data["quantity_sellable"]
+        flattened["#{wh_id}_reserved"] = wh_data["quantity_reserved_for_orders"]
+        flattened["#{wh_id}_blocked"] = wh_data["quantity_blocked_by_merchant"]
+        flattened["#{wh_id}_last_update"] = wh_data["last_update"]
+      end
+    end
+    # Remove nested data that should not be included in CSV
+    flattened.delete("warehouses")
+    flattened.delete("batches")
+    flattened.delete("variants")
+    flattened
+  end
+
   def generate_sku_history(sku)
     history_points = 20
     history = []
@@ -594,5 +618,24 @@ class DashboardController < ApplicationController
       history << historical_data
     end
     history.sort_by { |h| Time.strptime(h["timestamp"], "%d/%m/%Y %H:%M UTC") }.reverse
+  end
+
+  def flatten_historical_data(snapshot)
+    flattened = snapshot.as_document.dup
+    # Include warehouse data in the flattened output
+    if snapshot.warehouses.present?
+      snapshot.warehouses.each do |wh_id, wh_data|
+        flattened["#{wh_id}_on_shelf"] = wh_data["quantity_on_shelf"]
+        flattened["#{wh_id}_sellable"] = wh_data["quantity_sellable"]
+        flattened["#{wh_id}_reserved"] = wh_data["quantity_reserved_for_orders"]
+        flattened["#{wh_id}_blocked"] = wh_data["quantity_blocked_by_merchant"]
+        flattened["#{wh_id}_last_update"] = wh_data["last_update"]
+      end
+    end
+    # Remove nested data that should not be included in CSV
+    flattened.delete("warehouses")
+    flattened.delete("batches")
+    flattened.delete("variants")
+    flattened
   end
 end

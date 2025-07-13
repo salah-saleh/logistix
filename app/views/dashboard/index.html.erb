@@ -525,5 +525,237 @@
         </nav>
       </div>
     <% end %>
+
+    <!-- Analytics Section: Weekly Analytics Table and Filters -->
+    <div class="mt-10">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Weekly Analytics</h2>
+      <form method="get" action="<%= dashboard_index_path %>" class="mb-4 flex flex-wrap gap-4 items-end">
+        <!-- Week filter -->
+        <div>
+          <label for="analytics_week_start" class="block text-sm font-medium text-gray-700">Week Start</label>
+          <select name="analytics_week_start" id="analytics_week_start" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <% @analytics_weeks.each do |week| %>
+              <option value="<%= week %>" <%= "selected" if (params[:analytics_week_start] ? Date.parse(params[:analytics_week_start]) : @analytics_weeks.first) == week %>>
+                <%= week.strftime("%Y-%m-%d") %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+        <!-- Channel filter -->
+        <div>
+          <label for="analytics_channel" class="block text-sm font-medium text-gray-700">Channel</label>
+          <select name="analytics_channel" id="analytics_channel" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <option value="">All</option>
+            <% ["Shopify", "Amazon", "eBay"].each do |ch| %>
+              <option value="<%= ch %>" <%= "selected" if params[:analytics_channel] == ch %>><%= ch %></option>
+            <% end %>
+          </select>
+        </div>
+        <!-- Warehouse filter -->
+        <div>
+          <label for="analytics_warehouse" class="block text-sm font-medium text-gray-700">Warehouse</label>
+          <select name="analytics_warehouse" id="analytics_warehouse" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <option value="">All</option>
+            <% @warehouses.each do |wh| %>
+              <option value="<%= wh %>" <%= "selected" if params[:analytics_warehouse] == wh %>><%= wh %></option>
+            <% end %>
+          </select>
+        </div>
+        <!-- Sort by -->
+        <div>
+          <label for="analytics_sort_by" class="block text-sm font-medium text-gray-700">Sort By</label>
+          <select name="analytics_sort_by" id="analytics_sort_by" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <option value="orders_total" <%= "selected" if params[:analytics_sort_by] == "orders_total" %>>Orders</option>
+            <option value="returns_total" <%= "selected" if params[:analytics_sort_by] == "returns_total" %>>Returns</option>
+            <option value="velocity_total_per_day" <%= "selected" if params[:analytics_sort_by] == "velocity_total_per_day" %>>Velocity</option>
+            <option value="runway_total_days" <%= "selected" if params[:analytics_sort_by] == "runway_total_days" %>>Runway</option>
+          </select>
+        </div>
+        <!-- Sort order -->
+        <div>
+          <label for="analytics_sort_order" class="block text-sm font-medium text-gray-700">Order</label>
+          <select name="analytics_sort_order" id="analytics_sort_order" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <option value="desc" <%= "selected" if params[:analytics_sort_order] == "desc" %>>Desc</option>
+            <option value="asc" <%= "selected" if params[:analytics_sort_order] == "asc" %>>Asc</option>
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-6">Apply</button>
+        </div>
+      </form>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "sku",
+                  analytics_sort_order: params[:analytics_sort_by] == "sku" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  SKU
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "sku" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "week_start",
+                  analytics_sort_order: params[:analytics_sort_by] == "week_start" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  Week
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "week_start" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "orders_total",
+                  analytics_sort_order: params[:analytics_sort_by] == "orders_total" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  Orders (Total)
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "orders_total" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "returns_total",
+                  analytics_sort_order: params[:analytics_sort_by] == "returns_total" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  Returns (Total)
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "returns_total" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "velocity_total_per_day",
+                  analytics_sort_order: params[:analytics_sort_by] == "velocity_total_per_day" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  Velocity (Total/Day)
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "velocity_total_per_day" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <a href="<%= dashboard_index_path(
+                  analytics_sort_by: "runway_total_days",
+                  analytics_sort_order: params[:analytics_sort_by] == "runway_total_days" && params[:analytics_sort_order] == "asc" ? "desc" : "asc",
+                  analytics_week_start: params[:analytics_week_start],
+                  analytics_channel: params[:analytics_channel],
+                  analytics_warehouse: params[:analytics_warehouse]
+                ) %>" class="group inline-flex">
+                  Runway (Days)
+                  <span class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
+                    <% if params[:analytics_sort_by] == "runway_total_days" %>
+                      <%= params[:analytics_sort_order] == "asc" ? "↑" : "↓" %>
+                    <% else %>
+                      ↕
+                    <% end %>
+                  </span>
+                </a>
+              </th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @analytics.each do |a| %>
+              <tr>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-blue-700 font-bold">
+                  <%= link_to a.sku, show_dashboard_path(sku: a.sku), class: "hover:underline" %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                  <%= a.week_start.strftime("%Y-%m-%d") %> - <%= a.week_end.strftime("%Y-%m-%d") %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                  <%= a.orders_total %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                  <%= a.returns_total %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                  <%= a.velocity_total_per_day.round(2) %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                  <%= a.runway_total_days.round(1) %>
+                </td>
+                <td class="px-4 py-2 whitespace-nowrap text-sm">
+                  <%= link_to "View", show_dashboard_path(sku: a.sku), class: "text-blue-600 hover:text-blue-900 underline" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Pagination Controls for Analytics Table -->
+    <div class="mt-4 flex items-center justify-between">
+      <div class="text-sm text-gray-700">
+        Showing <%= @analytics_start %> to <%= @analytics_end %> of <%= @analytics_total %> SKUs
+      </div>
+      <div class="flex space-x-2">
+        <% if @analytics_page > 1 %>
+          <%= link_to "Previous", dashboard_index_path(
+            analytics_page: @analytics_page - 1,
+            analytics_sort_by: params[:analytics_sort_by],
+            analytics_sort_order: params[:analytics_sort_order],
+            analytics_week_start: params[:analytics_week_start],
+            analytics_channel: params[:analytics_channel],
+            analytics_warehouse: params[:analytics_warehouse]
+          ), class: "px-3 py-1 text-sm border rounded-md hover:bg-gray-50" %>
+        <% end %>
+        <% if @analytics_page < @analytics_total_pages %>
+          <%= link_to "Next", dashboard_index_path(
+            analytics_page: @analytics_page + 1,
+            analytics_sort_by: params[:analytics_sort_by],
+            analytics_sort_order: params[:analytics_sort_order],
+            analytics_week_start: params[:analytics_week_start],
+            analytics_channel: params[:analytics_channel],
+            analytics_warehouse: params[:analytics_warehouse]
+          ), class: "px-3 py-1 text-sm border rounded-md hover:bg-gray-50" %>
+        <% end %>
+      </div>
+    </div>
+    <!-- End Analytics Section -->
   </div>
 </div>

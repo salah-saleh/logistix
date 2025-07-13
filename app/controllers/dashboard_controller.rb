@@ -7,6 +7,43 @@ class DashboardController < ApplicationController
     @warehouses = ["wh_1", "wh_2", "wh_3", "wh_4", "wh_5"]
     @skus = filtered_skus(params)
 
+    # --- Analytics: Fetch and filter weekly analytics for all SKUs ---
+    # Get all unique weeks for the week selector (sorted descending)
+    @analytics_weeks = SkuWeeklyAnalytics.distinct(:week_start).sort.reverse
+    # Get week filter (default: most recent week)
+    week_start = params[:analytics_week_start].present? ? Date.parse(params[:analytics_week_start]) : @analytics_weeks.first
+    # Get channel filter (optional)
+    analytics_channel = params[:analytics_channel]
+    # Get warehouse filter (optional)
+    analytics_warehouse = params[:analytics_warehouse]
+    # Sorting (default: sku asc)
+    analytics_sort_by = params[:analytics_sort_by] || "sku"
+    analytics_sort_order = params[:analytics_sort_order] == "desc" ? :desc : :asc
+
+    # Fetch analytics for the selected week (all SKUs)
+    analytics_all = SkuWeeklyAnalytics.where(week_start: week_start)
+    # Apply channel filter if present
+    if analytics_channel.present?
+      analytics_all = analytics_all.select { |a| a.orders_by_channel[analytics_channel].to_i > 0 }
+    end
+    # Apply warehouse filter if present (velocity/runway)
+    if analytics_warehouse.present?
+      analytics_all = analytics_all.select { |a| a.velocity_by_warehouse[analytics_warehouse].to_f > 0 || a.runway_by_warehouse[analytics_warehouse].to_f > 0 }
+    end
+    # Sorting
+    analytics_sorted = analytics_all.sort_by { |a| a[analytics_sort_by] || 0 }
+    analytics_sorted.reverse! if analytics_sort_order == :desc
+
+    # Pagination for analytics table (10 SKUs per page)
+    @analytics_page = (params[:analytics_page] || 1).to_i
+    @analytics_per_page = 10
+    @analytics_total = analytics_sorted.size
+    @analytics_total_pages = (@analytics_total / @analytics_per_page.to_f).ceil
+    @analytics_start = (@analytics_page - 1) * @analytics_per_page + 1
+    @analytics_end = [@analytics_page * @analytics_per_page, @analytics_total].min
+    @analytics = analytics_sorted[(@analytics_page - 1) * @analytics_per_page, @analytics_per_page] || []
+    # --- End Analytics ---
+
     # Transform SKU data to show warehouse-specific values when warehouse filter is applied
     if params[:warehouse].present?
       @skus = @skus.map do |sku|
@@ -69,6 +106,18 @@ class DashboardController < ApplicationController
       render json: { error: "SKU not found", status: 404 }, status: :not_found
       return
     end
+
+    # --- Analytics: Fetch all analytics for this SKU, most recent first ---
+    all_analytics = SkuWeeklyAnalytics.where(sku: @sku.sku).order_by(week_start: :desc).to_a
+    # Pagination for analytics (10 per page)
+    @analytics_page = (params[:analytics_page] || 1).to_i
+    @analytics_per_page = 10
+    @analytics_total = all_analytics.size
+    @analytics_total_pages = (@analytics_total / @analytics_per_page.to_f).ceil
+    @analytics_start = (@analytics_page - 1) * @analytics_per_page + 1
+    @analytics_end = [@analytics_page * @analytics_per_page, @analytics_total].min
+    @sku_analytics = all_analytics[(@analytics_page - 1) * @analytics_per_page, @analytics_per_page] || []
+    # --- End Analytics ---
 
     # On-the-fly historical data generation if missing
     unless SkuHistory.where(sku: @sku.sku).exists?

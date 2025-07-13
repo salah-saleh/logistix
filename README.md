@@ -1,53 +1,43 @@
-# README
+# Gistix SKU Analytics
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+## Weekly Analytics Feature
 
-Things you may want to cover:
+This project now includes a comprehensive weekly analytics system for SKUs, enabling advanced reporting and insights into stock movement, sales, returns, and inventory runway.
 
-* Ruby version
+### SkuWeeklyAnalytics Model
+- Stores weekly analytics for each SKU.
+- Each record represents one SKU for one week.
+- Fields include:
+  - `sku`: SKU code
+  - `week_start`, `week_end`: Week boundaries
+  - `orders_total`, `orders_by_channel`, `orders_by_country`, `orders_by_city`
+  - `returns_total`, `returns_by_channel`, `returns_by_country`, `returns_by_city`
+  - `velocity_total_per_day`, `velocity_by_warehouse`, `velocity_by_channel`
+  - `runway_total_days`, `runway_by_warehouse`
+- Used for analytics, reporting, and dashboard display.
 
-* System dependencies
+### Generating Mock Analytics Data
+- To generate mock analytics for all SKUs for the past year, run:
+  ```sh
+  rails mock_data:generate_sku_analytics
+  ```
+- This will populate the `SkuWeeklyAnalytics` collection with realistic random data for development/testing.
+- Channels include Shopify, Amazon, eBay. Countries and cities are also included for breakdowns.
 
-* Configuration
+### Dashboard Analytics Features
+- **Index Page**: Below the stock table, a new analytics table shows weekly analytics for all SKUs.
+  - Filter by week, channel, warehouse.
+  - Sort by orders, returns, velocity, or runway.
+- **Show Page**: Each SKU detail page now includes a full weekly analytics breakdown.
+  - See orders, returns, velocity, and runway, with breakdowns by channel and warehouse.
 
-* Database creation
+### Code Documentation
+- All new code is thoroughly documented, line by line, explaining the purpose and logic of each section.
+- All new fields, filters, and view logic are explained in comments.
 
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
-
----
-
-## SKU Historical Data Seeding
-
-### SkuHistory Model
-- The `SkuHistory` model stores historical snapshots of SKU stock data for analytics and export.
-- Each document represents a single point in time for a given SKU, including all nested warehouse, batch, and variant data.
-- Used for analytics, reporting, and historical exports.
-
-### Seeding Historical Data
-- To seed historical data for all SKUs, use the provided rake task:
-
-```
-rails sku_history:seed
-```
-- This generates 4-8 history points per day for the last 30 days for each SKU, matching the SKU's structure (warehouses, batches, variants, etc).
-- The data is realistic and reproducible.
-- If history already exists for a SKU, it will be skipped. To force overwrite, run:
-
-```
-rails sku_history:seed[force]
-```
-
-### On-the-Fly Generation (Fallback)
-- If a SKU does not have historical data, the controller will (to be implemented) generate it on-the-fly using the same logic as the rake task.
-- This ensures the dashboard and export features always have data to work with.
+### Libraries Used
+- No new external libraries are required for the analytics feature. All logic uses built-in Ruby, Rails, and Mongoid features.
 
 ---
+
+For any questions or to extend analytics, see the code comments or contact the project maintainer.

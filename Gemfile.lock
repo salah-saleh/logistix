@@ -80,13 +80,13 @@ GEM
     bcrypt_pbkdf (1.1.1-arm64-darwin)
     bcrypt_pbkdf (1.1.1-x86_64-darwin)
     benchmark (0.4.1)
-    bigdecimal (3.2.2)
+    bigdecimal (3.2.3)
     bindex (0.8.1)
     bootsnap (1.18.6)
       msgpack (~> 1.2)
     brakeman (7.0.2)
       racc
-    bson (5.0.2)
+    bson (5.1.1)
     builder (3.3.0)
     capybara (3.40.0)
       addressable
@@ -98,7 +98,7 @@ GEM
       regexp_parser (>= 1.5, < 3.0)
       xpath (~> 3.2)
     concurrent-ruby (1.3.5)
-    connection_pool (2.5.3)
+    connection_pool (2.5.4)
     crass (1.0.6)
     date (3.4.1)
     debug (1.10.0)
@@ -172,14 +172,13 @@ GEM
     matrix (0.4.2)
     mini_mime (1.1.5)
     minitest (5.25.5)
-    mongo (2.21.1)
+    mongo (2.21.3)
       base64
       bson (>= 4.14.1, < 6.0.0)
-    mongoid (8.1.10)
+    mongoid (9.0.8)
       activemodel (>= 5.1, < 8.1, != 7.0.0)
       concurrent-ruby (>= 1.0.5, < 2.0)
       mongo (>= 2.18.0, < 3.0.0)
-      ruby2_keywords (~> 0.0.5)
     msgpack (1.8.0)
     net-imap (0.5.8)
       date
@@ -313,7 +312,6 @@ GEM
       rubocop-performance (>= 1.24)
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
-    ruby2_keywords (0.0.5)
     rubyzip (2.4.1)
     securerandom (0.4.1)
     selenium-webdriver (4.33.0)
@@ -420,7 +418,7 @@ DEPENDENCIES
   kaminari
   kaminari-activerecord
   kaminari-mongoid
-  mongoid (~> 8.1)
+  mongoid (~> 9.0)
   propshaft
   puma (>= 5.0)
   rails (~> 8.0.2)
